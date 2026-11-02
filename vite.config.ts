@@ -12,7 +12,25 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// Nonce-based CSP for scripts. Inline style attributes are allowed because Svelte and our
+			// motion components set CSS variables via `style=`. Turnstile is the only third party.
+			csp: {
+				mode: 'auto',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self', 'https://challenges.cloudflare.com'],
+					'style-src': ['self', 'unsafe-inline'],
+					'img-src': ['self', 'data:', 'blob:'],
+					'font-src': ['self'],
+					'connect-src': ['self'],
+					'frame-src': ['https://challenges.cloudflare.com'],
+					'frame-ancestors': ['none'],
+					'form-action': ['self'],
+					'base-uri': ['self'],
+					'object-src': ['none']
+				}
+			}
 		})
 	]
 });

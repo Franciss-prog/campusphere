@@ -22,3 +22,7 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .neon
+
+# Test artifacts
+/test-results
+/playwright-report

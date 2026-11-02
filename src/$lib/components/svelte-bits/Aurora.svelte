@@ -204,4 +204,4 @@ void main() {
 	});
 </script>
 
-<div bind:this={ctn} class="w-full h-full"></div>
+<div bind:this={ctn} class="h-full w-full"></div>

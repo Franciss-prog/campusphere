@@ -183,6 +183,74 @@ The platform does not independently authorize changes to university policies, fa
 - AI-assisted concern categorization and duplicate detection.
 - Progressive Web App support.
 
+## Development
+
+### Stack
+
+SvelteKit 3 + Svelte 5 (runes), TypeScript, Tailwind CSS 4, `@sveltejs/adapter-bun`, Bun.
+Neon Postgres via Drizzle ORM, Neon Object Storage (S3) for photos, Zod validation,
+`@node-rs/argon2` for staff passwords, `marked` + `sanitize-html` for Markdown, `sharp` for images.
+Animations: two vendored [Svelte Bits](https://sveltebits.xyz) components (Magnet, CountUp) plus
+lightweight custom CSS/JS effects. See [`docs/PLAN.md`](docs/PLAN.md) for the architecture and data model.
+
+### Setup
+
+```sh
+bun install
+cp .env.example .env.local       # or: neon env pull (writes the Neon values)
+# set ANON_SECRET (openssl rand -base64 48) and the SEED_ADMIN_* values in .env.local
+bun run db:migrate               # apply migrations (uses DATABASE_URL_UNPOOLED)
+bun run db:seed                  # categories, tags, settings, official post, sample content
+bun run db:seed-admin            # first administrator from SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
+bun run dev
+```
+
+Use a Neon **development branch** locally (`neon checkout dev --create --env .env.local`).
+The seed script and the database tests refuse to run on the `production` branch.
+
+### Environment variables
+
+| Variable                                                                          | Required     | Purpose                                                                                                              |
+| --------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                                    | yes          | Neon pooled connection (app traffic)                                                                                 |
+| `DATABASE_URL_UNPOOLED`                                                           | yes          | Neon direct connection (migrations, scripts)                                                                         |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` | yes          | Neon Object Storage (photo uploads)                                                                                  |
+| `ANON_SECRET`                                                                     | yes          | ≥ 32 random characters. Keys the HMAC of anonymous tokens and client addresses. Rotating it unlinks existing tokens. |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`                                      | production   | Cloudflare Turnstile bot check. Leave empty in development to bypass.                                                |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`                                         | scripts only | First administrator (`bun run db:seed-admin`). Password ≥ 12 characters.                                             |
+| `NEON_FUNCTION_HELLO_BASE_URL`                                                    | no           | Neon Function smoke test (development only)                                                                          |
+
+Production server variables (`BODY_SIZE_LIMIT`, proxy headers) are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+### Scripts
+
+| Command                              | What it does                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `bun run dev`                        | Development server                                                                                 |
+| `bun run build` / `bun run start`    | Production build / serve (`start` needs Bun ≥ 1.4)                                                 |
+| `bun run check`                      | `svelte-check` type checking                                                                       |
+| `bun run lint` / `bun run format`    | Prettier + ESLint / format                                                                         |
+| `bun run test`                       | Unit tests (Vitest)                                                                                |
+| `bun run test:db`                    | Database integration tests against a dev branch                                                    |
+| `bun run test:e2e`                   | Playwright smoke + accessibility tests (`CHROMIUM_PATH=/usr/bin/chromium` to use a system browser) |
+| `bun run db:generate` / `db:migrate` | Create / apply Drizzle migrations                                                                  |
+| `bun run db:seed [--reset\|--base]`  | Seed data (`--base`: no sample content)                                                            |
+| `bun run db:seed-admin`              | Create or reset the first administrator                                                            |
+
+### Where things live
+
+- `src/routes/(landing)` landing page, `src/routes/(app)` public pages, `src/routes/admin` staff area
+- `src/lib/server/services/*` all data access and business rules (concerns, proposals, posts, comments, moderation, admin, search)
+- `src/lib/server/{anon,safety,ratelimit,turnstile,sanitize,images,auth}.ts` the anonymity and safety layer
+- `src/lib/components/{shell,ui,motion,svelte-bits}` UI; Svelte Bits components are only used through `motion/` wrappers
+- `src/lib/content/site.ts` copy and **placeholders for university office names and contacts**
+
+### Placeholders to fill in
+
+All marked `[To be provided by the university]` in `src/lib/content/site.ts`:
+the urgent/safety office and contact (report form, About, Guidelines), the coordinating office and
+contact (About, Privacy), and a data protection contact (Privacy).
+
 ---
 
 **Campusphere — Connect. Share. Collaborate. Improve.**

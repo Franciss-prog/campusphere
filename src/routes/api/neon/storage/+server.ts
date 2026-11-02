@@ -1,4 +1,5 @@
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
+import { dev } from '$app/env';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ASSETS_BUCKET, s3 } from '#lib/server/storage.ts';
@@ -6,6 +7,8 @@ import type { RequestHandler } from './$types';
 
 // Smoke test: put an object, read it back, presign it, fetch via the presigned URL, then delete.
 export const GET: RequestHandler = async () => {
+	// Smoke test: development only, never exposed in production.
+	if (!dev) error(404);
 	const client = s3();
 	const key = `healthchecks/${crypto.randomUUID()}.txt`;
 	const body = `hello from campusphere @ ${new Date().toISOString()}`;
