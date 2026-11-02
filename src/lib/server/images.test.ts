@@ -8,6 +8,13 @@ vi.mock('./storage.ts', () => ({
 		send: async (cmd: { input: { Body: Buffer; Key: string } }) => sent.push(cmd.input)
 	})
 }));
+const ledger: { key: string; bytes: number }[] = [];
+vi.mock('./db/index.ts', () => ({
+	t: { media: {} },
+	db: () => ({
+		insert: () => ({ values: async (v: { key: string; bytes: number }) => ledger.push(v) })
+	})
+}));
 const { processImage, IMAGE_KEY_RE } = await import('./images.ts');
 
 async function jpegWithGps(): Promise<File> {
@@ -26,6 +33,8 @@ describe('processImage', () => {
 		expect(res.ok).toBe(true);
 		const out = sent.at(-1)!;
 		expect(out.Key).toMatch(IMAGE_KEY_RE);
+		// Every stored object gets an unowned ledger row so unused uploads can be pruned.
+		expect(ledger.at(-1)).toEqual({ key: out.Key, bytes: out.Body.length });
 		const meta = await sharp(out.Body).metadata();
 		expect(meta.format).toBe('webp');
 		expect(meta.exif).toBeUndefined();

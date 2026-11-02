@@ -23,7 +23,7 @@
 			busy = true;
 			return async ({ update }) => {
 				busy = false;
-				await update({ reset: false });
+				await update({ reset: false, navigate: false });
 			};
 		}}
 	>

@@ -33,6 +33,7 @@ See `docs/PLAN.md` for architecture, data model, route map and phases, and `docs
 - SvelteKit 3 module names: `$app/env` (browser, dev), `$app/state`, `$app/env/private|public`. There is no `$app/environment`.
 - Use Svelte 5 runes (`$props`, `$state`, `$derived`, `$effect`); typed props via `./$types` (e.g. `LayoutProps`).
 - Prettier: tabs, single quotes, no trailing commas, printWidth 100, Tailwind class sorting (uses `src/routes/layout.css` as stylesheet).
+- Enhanced forms: use `use:enhance={stay}` (from `#lib/form-state.ts`) or pass `navigate: false` to `update()`. SvelteKit 3.1 otherwise navigates to the `?/action` URL, dropping the page's query string (open panels, sort, filters).
 - `cn` helper re-exported from the `cn` package in `src/lib/utils.ts`.
 
 ## Styling / theming
@@ -49,6 +50,7 @@ Linked to Neon project `round-scene-22235664`. Local dev is pinned to branch `de
 - Env vars are declared in `src/env.ts` via `defineEnvVars` (SvelteKit 3 API) and imported from `$app/env/private` (not `$env/...`). Add new vars there.
 - Postgres: Drizzle ORM. Schema `src/lib/server/db/schema.ts` (camelCase keys, `casing: 'snake_case'`). App access: `db()` / `pool()` from `#lib/server/db/index.ts` (pooled `DATABASE_URL`). Scripts and tests use the framework-free `createDb()` in `db/client.ts`.
 - Migrations: edit schema, then `bun run db:generate` (writes `drizzle/`) and `bun run db:migrate` (uses `DATABASE_URL_UNPOOLED`). Seed: `bun run db:seed [--reset|--base]` (sample rows have `source = 'seed'`; refuses on `production` without `--allow-production`). First admin: `bun run db:seed-admin` with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
+- Schema v2: `comment`/`reaction`/`report` use a (type, id) pair plus generated FK columns (cascade deletes, no manual cleanup needed). `media` is the upload ledger (`processImage` inserts, `attachMedia` links in the create transaction). Maintenance: `bun run db:reconcile`, `bun run db:prune-media`.
 - Smoke-test routes under `/api/neon/*` return 404 outside `dev`.
 - Object Storage: `src/lib/server/storage.ts`, AWS S3 client, explicit creds, `forcePathStyle: true` (required).
 - Functions: `src/lib/server/functions.ts`, fetch `NEON_FUNCTION_HELLO_BASE_URL`.

@@ -20,6 +20,8 @@
 		"db:studio": "bun --bun drizzle-kit studio",
 		"db:seed": "bun run scripts/seed.ts",
 		"db:seed-admin": "bun run scripts/seed-admin.ts",
+		"db:reconcile": "bun run scripts/reconcile-counts.ts",
+		"db:prune-media": "bun run scripts/prune-media.ts",
 		"test:db": "vitest run --config vitest.db.config.ts",
 		"test:e2e": "playwright test"
 	},

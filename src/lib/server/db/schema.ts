@@ -1,4 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import {
 	boolean,
 	check,
@@ -33,6 +34,24 @@ export const parentType = pgEnum('parent_type', ['post', 'concern', 'proposal'])
 export const targetType = pgEnum('target_type', ['post', 'concern', 'proposal', 'comment']);
 export const reportStatus = pgEnum('report_status', ['open', 'actioned', 'dismissed']);
 export const staffRole = pgEnum('staff_role', ['ADMIN', 'MODERATOR']);
+export const reportReason = pgEnum('report_reason', [
+	'private_person',
+	'harassment',
+	'spam',
+	'off_topic',
+	'safety',
+	'other'
+]);
+export const auditTarget = pgEnum('audit_target', [
+	'post',
+	'concern',
+	'proposal',
+	'comment',
+	'staff',
+	'category',
+	'tag',
+	'setting'
+]);
 
 const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
 
@@ -53,8 +72,13 @@ const source = () => text().notNull().default('anonymous');
 export const staffUser = pgTable('staff_user', {
 	id: id(),
 	email: text().notNull().unique(),
+	displayName: text(),
 	passwordHash: text().notNull(),
 	role: staffRole().notNull().default('MODERATOR'),
+	/** Set on invite: the account can only reach the password page until it picks its own. */
+	mustChangePassword: boolean().notNull().default(false),
+	/** Temporary invite passwords stop working after this time. */
+	tempPasswordExpiresAt: timestamp({ withTimezone: true }),
 	createdAt: createdAt(),
 	lastLoginAt: timestamp({ withTimezone: true }),
 	disabledAt: timestamp({ withTimezone: true })
@@ -240,6 +264,9 @@ export const proposal = pgTable(
 		title: text().notNull(),
 		description: text().notNull(),
 		feasibilityNotes: text(),
+		/** Set when staff adopt this proposal as the plan for its concern. */
+		adoptedAt: timestamp({ withTimezone: true }),
+		adoptedById: integer().references(() => staffUser.id, { onDelete: 'set null' }),
 		supportCount: integer().notNull().default(0),
 		commentCount: integer().notNull().default(0),
 		visibility: visibility().notNull().default('published'),
@@ -249,7 +276,8 @@ export const proposal = pgTable(
 			(): SQL =>
 				sql`setweight(to_tsvector('english', coalesce(${proposal.title}, '')), 'A') || setweight(to_tsvector('english', coalesce(${proposal.description}, '')), 'C')`
 		),
-		createdAt: createdAt()
+		createdAt: createdAt(),
+		updatedAt: updatedAt()
 	},
 	(t) => [
 		index().on(t.concernId),
@@ -272,14 +300,37 @@ export const proposalSupport = pgTable(
 
 // ---------------------------------------------------------------------------
 // Comments, reactions, reports
+//
+// These point at several kinds of parent through a (type, id) pair. For each kind there is a
+// generated, stored column that holds the id only when the type matches, with a real foreign key
+// on it. Postgres then rejects links to missing rows and cascades deletes, while app code keeps
+// using the (type, id) pair.
 // ---------------------------------------------------------------------------
+function link(typeCol: string, idCol: string, kind: string) {
+	return integer().generatedAlwaysAs(
+		sql.raw(`case when "${typeCol}" = '${kind}' then "${idCol}" end`)
+	);
+}
+
 export const comment = pgTable(
 	'comment',
 	{
 		id: id(),
 		parentType: parentType().notNull(),
 		parentId: integer().notNull(),
-		parentCommentId: integer(),
+		postId: link('parent_type', 'parent_id', 'post').references(() => post.id, {
+			onDelete: 'cascade'
+		}),
+		concernId: link('parent_type', 'parent_id', 'concern').references(() => concern.id, {
+			onDelete: 'cascade'
+		}),
+		proposalId: link('parent_type', 'parent_id', 'proposal').references(() => proposal.id, {
+			onDelete: 'cascade'
+		}),
+		/** Replies are one level deep and go with their root comment. */
+		parentCommentId: integer().references((): AnyPgColumn => comment.id, {
+			onDelete: 'cascade'
+		}),
 		body: text().notNull(),
 		/** Per-thread seed for the "Anonymous Pelican" label: HMAC(token, thread). Not linkable across threads. */
 		anonLabelSeed: text().notNull(),
@@ -297,6 +348,18 @@ export const reaction = pgTable(
 		id: id(),
 		targetType: targetType().notNull(),
 		targetId: integer().notNull(),
+		postId: link('target_type', 'target_id', 'post').references(() => post.id, {
+			onDelete: 'cascade'
+		}),
+		concernId: link('target_type', 'target_id', 'concern').references(() => concern.id, {
+			onDelete: 'cascade'
+		}),
+		proposalId: link('target_type', 'target_id', 'proposal').references(() => proposal.id, {
+			onDelete: 'cascade'
+		}),
+		commentId: link('target_type', 'target_id', 'comment').references(() => comment.id, {
+			onDelete: 'cascade'
+		}),
 		type: text().notNull().default('like'),
 		tokenHash: text().notNull(),
 		createdAt: createdAt()
@@ -310,7 +373,19 @@ export const report = pgTable(
 		id: id(),
 		targetType: targetType().notNull(),
 		targetId: integer().notNull(),
-		reason: text().notNull(),
+		postId: link('target_type', 'target_id', 'post').references(() => post.id, {
+			onDelete: 'cascade'
+		}),
+		concernId: link('target_type', 'target_id', 'concern').references(() => concern.id, {
+			onDelete: 'cascade'
+		}),
+		proposalId: link('target_type', 'target_id', 'proposal').references(() => proposal.id, {
+			onDelete: 'cascade'
+		}),
+		commentId: link('target_type', 'target_id', 'comment').references(() => comment.id, {
+			onDelete: 'cascade'
+		}),
+		reason: reportReason().notNull(),
 		details: text(),
 		status: reportStatus().notNull().default('open'),
 		reporterTokenHash: text().notNull(),
@@ -328,6 +403,32 @@ export const report = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Uploaded images
+//
+// Ledger of every object written to the bucket. A row is created at upload time with no owner
+// and attached in the same transaction that creates the concern or post. Rows that never got an
+// owner, or whose owner was deleted, are removed with their objects by `bun run db:prune-media`.
+// ---------------------------------------------------------------------------
+export const media = pgTable(
+	'media',
+	{
+		key: text().primaryKey(),
+		concernId: integer().references(() => concern.id, { onDelete: 'set null' }),
+		postId: integer().references(() => post.id, { onDelete: 'set null' }),
+		bytes: integer().notNull(),
+		createdAt: createdAt()
+	},
+	(t) => [
+		index().on(t.concernId),
+		index().on(t.postId),
+		index('media_orphan_idx')
+			.on(t.createdAt)
+			.where(sql`${t.concernId} is null and ${t.postId} is null`),
+		check('media_one_owner', sql`${t.concernId} is null or ${t.postId} is null`)
+	]
+);
+
+// ---------------------------------------------------------------------------
 // Operations
 // ---------------------------------------------------------------------------
 export const auditLog = pgTable(
@@ -336,12 +437,12 @@ export const auditLog = pgTable(
 		id: id(),
 		staffId: integer().references(() => staffUser.id, { onDelete: 'set null' }),
 		action: text().notNull(),
-		targetType: text(),
+		targetType: auditTarget(),
 		targetId: integer(),
 		meta: jsonb().$type<Record<string, unknown>>().notNull().default({}),
 		createdAt: createdAt()
 	},
-	(t) => [index().on(t.createdAt)]
+	(t) => [index().on(t.createdAt), index().on(t.targetType, t.targetId)]
 );
 
 export const rateLimit = pgTable(

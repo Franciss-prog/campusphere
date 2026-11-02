@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { db, pool, t } from '../db/index.ts';
 import { changeStatus, createConcern, getHistory, toggleConcernSupport } from './concerns.ts';
 import { fileReport } from './moderation.ts';
-import { createProposal, toggleProposalSupport } from './proposals.ts';
+import { createProposal, setAdopted, toggleProposalSupport } from './proposals.ts';
 import { toggleReaction } from './posts.ts';
 import { addComment } from './comments.ts';
 import { getSettings } from '../settings.ts';
@@ -158,7 +158,7 @@ describe('report threshold', () => {
 			const r = await fileReport({
 				targetType: 'concern',
 				targetId: id,
-				reason: 'Off topic',
+				reason: 'off_topic',
 				details: null,
 				tokenHash: i === 0 ? first : token()
 			});
@@ -169,7 +169,7 @@ describe('report threshold', () => {
 			await fileReport({
 				targetType: 'concern',
 				targetId: id,
-				reason: 'Off topic',
+				reason: 'off_topic',
 				details: null,
 				tokenHash: first
 			})
@@ -177,7 +177,7 @@ describe('report threshold', () => {
 		const last = await fileReport({
 			targetType: 'concern',
 			targetId: id,
-			reason: 'Off topic',
+			reason: 'off_topic',
 			details: null,
 			tokenHash: token()
 		});
@@ -190,5 +190,95 @@ describe('report threshold', () => {
 			.where(and(eq(t.auditLog.targetId, id), eq(t.auditLog.action, 'content.auto_hide')));
 		expect(logs).toHaveLength(1);
 		await db().delete(t.auditLog).where(eq(t.auditLog.id, logs[0].id));
+	});
+});
+
+describe('schema v2 integrity', () => {
+	it('rejects a comment whose parent does not exist', async () => {
+		await expect(
+			db().insert(t.comment).values({
+				parentType: 'concern',
+				parentId: 2_000_000_000,
+				body: 'orphan',
+				anonLabelSeed: 'x',
+				authorTokenHash: token()
+			})
+		).rejects.toThrow();
+	});
+
+	it('deleting a concern removes its proposals, comments, replies, reactions and reports', async () => {
+		const id = await newConcern();
+		const p = await createProposal({
+			concernId: id,
+			title: 'Cascade test proposal',
+			description: 'Removed together with its concern by the foreign keys.',
+			feasibilityNotes: null,
+			tokenHash: token(),
+			visibility: 'published'
+		});
+		expect(p.ok).toBe(true);
+		const [prop] = await db()
+			.select({ id: t.proposal.id })
+			.from(t.proposal)
+			.where(eq(t.proposal.concernId, id));
+		const root = await addComment({
+			parentType: 'proposal',
+			parentId: prop.id,
+			replyTo: null,
+			body: 'Root comment on the proposal',
+			seed: 's',
+			tokenHash: token(),
+			visibility: 'published'
+		});
+		if (!root.ok) throw new Error('comment failed');
+		await addComment({
+			parentType: 'proposal',
+			parentId: prop.id,
+			replyTo: root.id,
+			body: 'Reply to the root comment',
+			seed: 's',
+			tokenHash: token(),
+			visibility: 'published'
+		});
+		await toggleReaction('comment', root.id, token());
+		await fileReport({
+			targetType: 'comment',
+			targetId: root.id,
+			reason: 'spam',
+			details: null,
+			tokenHash: token()
+		});
+
+		await db().delete(t.concern).where(eq(t.concern.id, id));
+
+		const left = await db().execute<{ n: number }>(sql`
+			select (select count(*) from comment where proposal_id = ${prop.id})
+				+ (select count(*) from reaction where comment_id = ${root.id})
+				+ (select count(*) from report where comment_id = ${root.id})
+				+ (select count(*) from proposal where id = ${prop.id}) as n`);
+		expect(Number(left.rows[0].n)).toBe(0);
+	});
+
+	it('adopts a published proposal and audits it', async () => {
+		const id = await newConcern();
+		await createProposal({
+			concernId: id,
+			title: 'Adoption test proposal',
+			description: 'Staff adopt this as the plan for the concern.',
+			feasibilityNotes: null,
+			tokenHash: token(),
+			visibility: 'published'
+		});
+		const [prop] = await db()
+			.select({ id: t.proposal.id })
+			.from(t.proposal)
+			.where(eq(t.proposal.concernId, id));
+		expect(await setAdopted(staffId, prop.id, true)).toBe(true);
+		const [row] = await db().select().from(t.proposal).where(eq(t.proposal.id, prop.id));
+		expect(row.adoptedAt).not.toBeNull();
+		expect(row.adoptedById).toBe(staffId);
+		expect(await setAdopted(staffId, prop.id, false)).toBe(true);
+		const [cleared] = await db().select().from(t.proposal).where(eq(t.proposal.id, prop.id));
+		expect(cleared.adoptedAt).toBeNull();
 	});
 });

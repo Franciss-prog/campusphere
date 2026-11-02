@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Banner from '#lib/components/shell/Banner.svelte';
-	import { formState } from '#lib/form-state.ts';
+	import { formState, stay } from '#lib/form-state.ts';
 	import { timeAgo } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 
@@ -22,12 +22,12 @@
 	<div class="notice mt-4" role="status">
 		<b>Temporary password for {f.invited}</b>
 		<code class="tmp">{f.temp}</code>
-		Share it privately (not by email in plain text if you can avoid it). It is shown only once. Ask them
-		to change it under Account after signing in.
+		Share it privately (not by email in plain text if you can avoid it). It is shown only once and works
+		for 72 hours. They will be asked to choose their own password when they first sign in.
 	</div>
 {/if}
 
-<form class="toolbar" method="POST" action="?/invite" use:enhance>
+<form class="toolbar" method="POST" action="?/invite" use:enhance={stay}>
 	<label
 		>Email<input
 			class="control w-[300px] max-w-full"
@@ -61,13 +61,21 @@
 			{#each data.staff as s (s.id)}
 				<tr>
 					<td
-						><b>{s.email}</b>{#if s.id === data.meId}<small>You</small>{/if}</td
+						><b>{s.displayName ?? s.email}</b>{#if s.displayName}<small>{s.email}</small
+							>{/if}{#if s.id === data.meId}<small>You</small>{/if}{#if s.pendingSetup}<small
+								>Has not signed in yet</small
+							>{/if}</td
 					>
 					<td>
 						{#if s.id === data.meId}
 							{s.role === 'ADMIN' ? 'Administrator' : 'Moderator'}
 						{:else}
-							<form method="POST" action="?/role" use:enhance class="flex items-center gap-2">
+							<form
+								method="POST"
+								action="?/role"
+								use:enhance={stay}
+								class="flex items-center gap-2"
+							>
 								<input type="hidden" name="id" value={s.id} />
 								<label class="sr-only" for="role-{s.id}">Role for {s.email}</label>
 								<select
@@ -86,7 +94,7 @@
 					<td>{s.lastLoginAt ? timeAgo(s.lastLoginAt) : 'Never'}</td>
 					<td class="num">
 						{#if s.id !== data.meId}
-							<form method="POST" action="?/remove" use:enhance>
+							<form method="POST" action="?/remove" use:enhance={stay}>
 								<input type="hidden" name="id" value={s.id} />
 								<button
 									class="lk"

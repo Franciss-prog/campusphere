@@ -15,6 +15,13 @@ SEED_ADMIN_EMAIL=… SEED_ADMIN_PASSWORD=… bun run db:seed-admin
 
 Never run the full seed (sample content) or `test:db` / `test:e2e` against production.
 
+Maintenance, safe on production (for example from a daily cron):
+
+```sh
+bun run db:reconcile --check     # exits 1 if cached counters drifted; drop --check to fix
+bun run db:prune-media           # dry run; add --apply to delete unused uploads
+```
+
 ## 2. Build
 
 ```sh

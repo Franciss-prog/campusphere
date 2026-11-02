@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Banner from '#lib/components/shell/Banner.svelte';
-	import { formState } from '#lib/form-state.ts';
+	import { formState, stay } from '#lib/form-state.ts';
 	import { timeAgo } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 
@@ -113,7 +113,7 @@
 
 			<div class="acts">
 				{#if s.visibility === 'pending'}
-					<form method="POST" action="?/approve" use:enhance>
+					<form method="POST" action="?/approve" use:enhance={stay}>
 						<input type="hidden" name="targetType" value={s.targetType} /><input
 							type="hidden"
 							name="targetId"
@@ -123,7 +123,7 @@
 					</form>
 				{/if}
 				{#if s.visibility !== 'hidden'}
-					<form method="POST" action="?/hide" use:enhance>
+					<form method="POST" action="?/hide" use:enhance={stay}>
 						<input type="hidden" name="targetType" value={s.targetType} /><input
 							type="hidden"
 							name="targetId"
@@ -134,7 +134,7 @@
 						>
 					</form>
 				{:else}
-					<form method="POST" action="?/restore" use:enhance>
+					<form method="POST" action="?/restore" use:enhance={stay}>
 						<input type="hidden" name="targetType" value={s.targetType} /><input
 							type="hidden"
 							name="targetId"
@@ -144,7 +144,7 @@
 					</form>
 				{/if}
 				{#if s.reports > 0}
-					<form method="POST" action="?/dismiss" use:enhance>
+					<form method="POST" action="?/dismiss" use:enhance={stay}>
 						<input type="hidden" name="targetType" value={s.targetType} /><input
 							type="hidden"
 							name="targetId"
@@ -158,7 +158,7 @@
 			{#if s.targetType !== 'post'}
 				<details class="red">
 					<summary class="btn btn-o btn-sm">Redact names</summary>
-					<form method="POST" action="?/redact" use:enhance class="mt-3">
+					<form method="POST" action="?/redact" use:enhance={stay} class="mt-3">
 						<input type="hidden" name="targetType" value={s.targetType} /><input
 							type="hidden"
 							name="targetId"
@@ -198,7 +198,7 @@
 <details class="panel settings mt-6">
 	<summary class="disp">Moderation settings</summary>
 	{#if data.isAdmin}
-		<form method="POST" action="?/settings" use:enhance class="mt-5 grid gap-5">
+		<form method="POST" action="?/settings" use:enhance={stay} class="mt-5 grid gap-5">
 			<label class="fld"
 				><span>New content</span>
 				<select name="moderation_mode" class="control">

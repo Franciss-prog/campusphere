@@ -68,6 +68,7 @@
 					<div class="on">
 						On <a href="/concerns/{p.concernId}">{p.concernTitle}</a>
 					</div>
+					{#if p.adopted}<span class="adopted">Adopted by staff</span>{/if}
 					{#if best}<span class="bestlbl">Most supported</span>{/if}
 					<h3 class="disp">{p.title}</h3>
 					<p>{p.description}</p>

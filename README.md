@@ -236,6 +236,8 @@ Production server variables (`BODY_SIZE_LIMIT`, proxy headers) are in [`docs/DEP
 | `bun run db:generate` / `db:migrate` | Create / apply Drizzle migrations                                                                  |
 | `bun run db:seed [--reset\|--base]`  | Seed data (`--base`: no sample content)                                                            |
 | `bun run db:seed-admin`              | Create or reset the first administrator                                                            |
+| `bun run db:reconcile [--check]`     | Recompute cached like/support/comment/proposal counts from the rows                                |
+| `bun run db:prune-media [--apply]`   | Delete uploaded images no concern or post uses (dry run without `--apply`)                         |
 
 ### Where things live
 

@@ -53,7 +53,7 @@
 			} else if (result.type !== 'success') {
 				on = prev.on;
 				n = prev.n;
-				await update({ reset: false, invalidateAll: false });
+				await update({ reset: false, refreshAll: false, navigate: false });
 			}
 		};
 	}}

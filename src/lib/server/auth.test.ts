@@ -8,8 +8,9 @@ vi.mock('./db/index.ts', () => ({ db: () => ({}), t: {} }));
 
 const { can, requireAdmin, requireStaff } = await import('./auth.ts');
 
-const admin = { id: 1, email: 'a@x', role: 'ADMIN' as const };
-const mod = { id: 2, email: 'm@x', role: 'MODERATOR' as const };
+const base = { displayName: null, mustChangePassword: false };
+const admin = { ...base, id: 1, email: 'a@x', role: 'ADMIN' as const };
+const mod = { ...base, id: 2, email: 'm@x', role: 'MODERATOR' as const };
 const url = new URL('http://x/admin/users');
 
 describe('permissions', () => {

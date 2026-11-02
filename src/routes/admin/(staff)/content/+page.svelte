@@ -5,7 +5,7 @@
 	import LinkTabs from '#lib/components/ui/LinkTabs.svelte';
 	import SortSelect from '#lib/components/ui/SortSelect.svelte';
 	import { shortDate, withParams } from '#lib/format.ts';
-	import { formState } from '#lib/form-state.ts';
+	import { formState, stay } from '#lib/form-state.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -80,7 +80,7 @@
 						<form
 							method="POST"
 							action={r.visibility === 'hidden' ? '?/restore' : '?/hide'}
-							use:enhance
+							use:enhance={stay}
 						>
 							<input type="hidden" name="targetType" value={data.type} />
 							<input type="hidden" name="targetId" value={r.id} />

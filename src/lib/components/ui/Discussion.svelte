@@ -92,14 +92,14 @@
 						error = null;
 						body = '';
 						replyTo = null;
-						await update({ reset: false });
+						await update({ reset: false, navigate: false });
 					} else if (result.type === 'failure') {
 						const d = result.data as
 							{ errors?: Record<string, string>; message?: string } | undefined;
 						error = d?.errors?.body ?? d?.message ?? 'Your comment was not posted.';
 						message = null;
 					} else {
-						await update();
+						await update({ navigate: false });
 					}
 					resetKey++;
 				}}

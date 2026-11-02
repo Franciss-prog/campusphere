@@ -7,6 +7,8 @@ import { db, t } from './db/index.ts';
 export const STAFF_COOKIE = 'cs_staff';
 const SESSION_MS = 12 * 3_600_000;
 const RENEW_BELOW_MS = 6 * 3_600_000;
+/** How long an invite's temporary password works. */
+export const TEMP_PASSWORD_MS = 72 * 3_600_000;
 
 export type Staff = NonNullable<App.Locals['staff']>;
 
@@ -37,7 +39,9 @@ export async function readSession(cookies: Cookies): Promise<Staff | null> {
 		.select({
 			id: t.staffUser.id,
 			email: t.staffUser.email,
+			displayName: t.staffUser.displayName,
 			role: t.staffUser.role,
+			mustChangePassword: t.staffUser.mustChangePassword,
 			expiresAt: t.staffSession.expiresAt
 		})
 		.from(t.staffSession)
@@ -65,7 +69,13 @@ export async function readSession(cookies: Cookies): Promise<Staff | null> {
 			expires: expiresAt
 		});
 	}
-	return { id: row.id, email: row.email, role: row.role };
+	return {
+		id: row.id,
+		email: row.email,
+		displayName: row.displayName,
+		role: row.role,
+		mustChangePassword: row.mustChangePassword
+	};
 }
 
 export async function destroySession(cookies: Cookies): Promise<void> {
