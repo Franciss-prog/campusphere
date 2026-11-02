@@ -34,8 +34,12 @@ export default defineConfig(
 		}
 	},
 	{
-		// Override or add rule settings here, such as:
-		// 'svelte/button-has-type': 'error'
-		rules: {}
+		// The app is served from the domain root (no `paths.base`), and most links carry query
+		// strings built at runtime, so `resolve()` adds noise without protecting anything.
+		rules: { 'svelte/no-navigation-without-resolve': 'off' }
+	},
+	{
+		// Vendored third-party components (Svelte Bits), kept as close to upstream as possible.
+		ignores: ['src/lib/components/svelte-bits/**', 'src/$lib/**']
 	}
 );

@@ -1,9 +1,12 @@
-import { json } from '@sveltejs/kit';
-import { db } from '#lib/server/db.ts';
+import { error, json } from '@sveltejs/kit';
+import { dev } from '$app/env';
+import { pool as db } from '#lib/server/db/index.ts';
 import type { RequestHandler } from './$types';
 
 // Smoke test: write a row and read it back.
 export const GET: RequestHandler = async () => {
+	// Writes on GET: development only, never exposed in production.
+	if (!dev) error(404);
 	const pool = db();
 	await pool.query(
 		'CREATE TABLE IF NOT EXISTS healthchecks (id serial PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now())'
