@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { db, t } from '../db/index.ts';
+import { attachMedia } from '../images.ts';
 import { excerptOf, renderMarkdown, slugify } from '../sanitize.ts';
 import { orQuery } from './concerns.ts';
 import { authorLabel } from '../anon.ts';
@@ -186,6 +187,7 @@ export async function createPost(input: {
 				source: input.isOfficial ? 'official' : 'anonymous'
 			})
 			.returning({ id: t.post.id, slug: t.post.slug });
+		if (input.coverImage) await attachMedia(tx, [input.coverImage], { postId: row.id });
 		if (input.tagIds.length) {
 			await tx
 				.insert(t.postTag)
@@ -236,11 +238,8 @@ export async function deleteOwnPost(postId: number, tokenHash: string, windowMin
 			)
 		)
 		.returning({ id: t.post.id });
-	if (r.length) {
-		await db()
-			.delete(t.comment)
-			.where(and(eq(t.comment.parentType, 'post'), eq(t.comment.parentId, postId)));
-	}
+	// Comments, reactions and reports on the post go with it (foreign-key cascade); its cover
+	// image is unlinked and removed later by the media prune.
 	return r.length > 0;
 }
 

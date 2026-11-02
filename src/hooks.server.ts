@@ -24,6 +24,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 				headers: { location: `/admin/login?next=${encodeURIComponent(path)}` }
 			});
 		}
+		// Invited accounts must replace their temporary password before anything else.
+		if (
+			event.locals.staff.mustChangePassword &&
+			path !== '/admin/account' &&
+			path !== '/admin/logout'
+		) {
+			return event.request.method === 'GET'
+				? new Response(null, { status: 303, headers: { location: '/admin/account' } })
+				: new Response('Change your temporary password first.', { status: 403 });
+		}
 		if (ADMIN_ONLY.some((p) => path === p || path.startsWith(p + '/'))) {
 			if (event.locals.staff.role !== 'ADMIN' && event.request.method !== 'GET') {
 				return new Response('Only administrators can do this.', { status: 403 });

@@ -1,15 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 
+	import { REPORT_REASONS, REPORT_REASON_LABEL } from '#lib/report-reasons.ts';
+
 	// "Report" disclosure: a native <details> so it works without JS and is keyboard accessible.
-	const REASONS = [
-		'Names or targets a private person',
-		'Harassment or abusive language',
-		'Spam or advertising',
-		'Off topic',
-		'Safety concern',
-		'Something else'
-	];
 
 	let {
 		targetType,
@@ -51,8 +45,11 @@
 			<input type="hidden" name="targetId" value={targetId} />
 			<fieldset>
 				<legend>Why are you reporting this?</legend>
-				{#each REASONS as r, i (r)}
-					<label><input type="radio" name="reason" value={r} required={i === 0} /> {r}</label>
+				{#each REPORT_REASONS as r, i (r)}
+					<label
+						><input type="radio" name="reason" value={r} required={i === 0} />
+						{REPORT_REASON_LABEL[r]}</label
+					>
 				{/each}
 			</fieldset>
 			<label class="det" for="{uid}-d">Anything else moderators should know? (optional)</label>

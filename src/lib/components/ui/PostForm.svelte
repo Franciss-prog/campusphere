@@ -40,7 +40,7 @@
 		return async ({ update }) => {
 			submitting = false;
 			resetKey++;
-			await update({ reset: false });
+			await update({ reset: false, navigate: false });
 		};
 	}}
 >

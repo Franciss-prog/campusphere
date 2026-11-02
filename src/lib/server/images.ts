@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
+import { inArray } from 'drizzle-orm';
 import { ASSETS_BUCKET, s3 } from './storage.ts';
+import { db, t, type Database } from './db/index.ts';
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_FORMATS = new Set(['jpeg', 'png', 'webp']);
@@ -43,7 +45,20 @@ export async function processImage(file: File): Promise<ImageResult> {
 	await s3().send(
 		new PutObjectCommand({ Bucket: ASSETS_BUCKET, Key: key, Body: out, ContentType: 'image/webp' })
 	);
+	// Ledger row with no owner yet; attachMedia links it when the concern or post is saved.
+	await db().insert(t.media).values({ key, bytes: out.length });
 	return { ok: true, key };
+}
+
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Links uploaded images to their owner, inside the transaction that creates it. */
+export async function attachMedia(
+	tx: Tx,
+	keys: string[],
+	owner: { concernId: number } | { postId: number }
+): Promise<void> {
+	if (keys.length) await tx.update(t.media).set(owner).where(inArray(t.media.key, keys));
 }
 
 export function mediaUrl(key: string): string {

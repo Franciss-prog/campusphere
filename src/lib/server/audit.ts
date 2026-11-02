@@ -20,7 +20,11 @@ export type AuditAction =
 	| 'staff.remove'
 	| 'staff.login'
 	| 'setting.change'
-	| 'post.official';
+	| 'post.official'
+	| 'proposal.adopt'
+	| 'proposal.unadopt';
+
+export type AuditTarget = (typeof t.auditLog.$inferInsert)['targetType'] & string;
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -29,7 +33,7 @@ export async function audit(
 	entry: {
 		staffId: number | null;
 		action: AuditAction;
-		targetType?: string;
+		targetType?: AuditTarget;
 		targetId?: number;
 		meta?: Record<string, unknown>;
 	},

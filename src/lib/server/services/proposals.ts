@@ -1,5 +1,6 @@
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { db, t } from '../db/index.ts';
+import { audit } from '../audit.ts';
 
 export const PROPOSAL_SORTS = ['supported', 'newest', 'discussed'] as const;
 export type ProposalSort = (typeof PROPOSAL_SORTS)[number];
@@ -24,6 +25,7 @@ const columns = (anonHash: string | null) => ({
 	feasibilityNotes: t.proposal.feasibilityNotes,
 	supportCount: t.proposal.supportCount,
 	commentCount: t.proposal.commentCount,
+	adopted: sql<boolean>`${t.proposal.adoptedAt} is not null`,
 	createdAt: t.proposal.createdAt,
 	supported: supported(anonHash)
 });
@@ -169,5 +171,47 @@ export async function toggleProposalSupport(proposalId: number, tokenHash: strin
 			supportCount: row.supportCount,
 			concernId: row.concernId
 		};
+	});
+}
+
+/** Proposals on a concern for the staff status panel (all visibilities). */
+export async function proposalsForStaff(concernId: number) {
+	return db()
+		.select({
+			id: t.proposal.id,
+			title: t.proposal.title,
+			supportCount: t.proposal.supportCount,
+			visibility: t.proposal.visibility,
+			adopted: sql<boolean>`${t.proposal.adoptedAt} is not null`
+		})
+		.from(t.proposal)
+		.where(eq(t.proposal.concernId, concernId))
+		.orderBy(desc(t.proposal.supportCount), desc(t.proposal.createdAt));
+}
+
+/** Marks a published proposal as the plan staff adopted for its concern (or clears it). */
+export async function setAdopted(staffId: number, proposalId: number, adopt: boolean) {
+	return db().transaction(async (tx) => {
+		const [row] = await tx
+			.update(t.proposal)
+			.set(
+				adopt
+					? { adoptedAt: new Date(), adoptedById: staffId }
+					: { adoptedAt: null, adoptedById: null }
+			)
+			.where(and(eq(t.proposal.id, proposalId), eq(t.proposal.visibility, 'published')))
+			.returning({ id: t.proposal.id, concernId: t.proposal.concernId });
+		if (!row) return false;
+		await audit(
+			{
+				staffId,
+				action: adopt ? 'proposal.adopt' : 'proposal.unadopt',
+				targetType: 'proposal',
+				targetId: row.id,
+				meta: { concernId: row.concernId }
+			},
+			tx
+		);
+		return true;
 	});
 }

@@ -6,7 +6,7 @@
 //
 // Refuses to run against the Neon `production` branch unless --allow-production is passed.
 import { randomBytes } from 'node:crypto';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { createDb } from '../src/lib/server/db/client.ts';
 import * as t from '../src/lib/server/db/schema.ts';
 import { labelSeed } from '../src/lib/server/anon-core.ts';
@@ -28,6 +28,7 @@ const DAY = 86_400_000;
 const ago = (days: number, hours = 0) => new Date(Date.now() - days * DAY - hours * 3_600_000);
 const fakeToken = () => randomBytes(32).toString('base64url');
 const fakeHash = () => randomBytes(32).toString('hex');
+const fakeVoters = (n: number) => Array.from({ length: n }, fakeHash);
 
 // ---------------------------------------------------------------------------
 // Taxonomy
@@ -418,6 +419,11 @@ async function seedSample() {
 				statusChangedAt: created
 			})
 			.returning({ id: t.concern.id });
+		if (c.supports) {
+			await db
+				.insert(t.concernSupport)
+				.values(fakeVoters(c.supports).map((tokenHash) => ({ concernId: row.id, tokenHash })));
+		}
 
 		// Status history: spread evenly between creation and now.
 		const steps = path.length;
@@ -454,6 +460,11 @@ async function seedSample() {
 					createdAt: ago(Math.max(c.days - 1 - i, 0))
 				})
 				.returning({ id: t.proposal.id });
+			if (p.supports) {
+				await db
+					.insert(t.proposalSupport)
+					.values(fakeVoters(p.supports).map((tokenHash) => ({ proposalId: prop.id, tokenHash })));
+			}
 			if (i === 0) {
 				await db.insert(t.comment).values({
 					parentType: 'proposal',
@@ -478,21 +489,33 @@ async function seedSample() {
 	}
 
 	for (const p of SAMPLE_POSTS) {
-		await db.insert(t.post).values({
-			slug: p.title
-				.toLowerCase()
-				.replace(/[^a-z0-9]+/g, '-')
-				.replace(/^-|-$/g, ''),
-			title: p.title,
-			excerpt: excerptOf(p.body),
-			bodyMd: p.body,
-			bodyHtml: renderMarkdown(p.body),
-			categoryId: catId('blog', p.category),
-			likeCount: p.likes,
-			authorTokenHash: fakeHash(),
-			source: 'seed',
-			createdAt: ago(p.days)
-		});
+		const [post] = await db
+			.insert(t.post)
+			.values({
+				slug: p.title
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, ''),
+				title: p.title,
+				excerpt: excerptOf(p.body),
+				bodyMd: p.body,
+				bodyHtml: renderMarkdown(p.body),
+				categoryId: catId('blog', p.category),
+				likeCount: p.likes,
+				authorTokenHash: fakeHash(),
+				source: 'seed',
+				createdAt: ago(p.days)
+			})
+			.returning({ id: t.post.id });
+		if (p.likes) {
+			await db.insert(t.reaction).values(
+				fakeVoters(p.likes).map((tokenHash) => ({
+					targetType: 'post' as const,
+					targetId: post.id,
+					tokenHash
+				}))
+			);
+		}
 	}
 
 	// A few open reports so the moderation queue has something to review.
@@ -507,13 +530,13 @@ async function seedSample() {
 			{
 				targetType: 'comment',
 				targetId: flagged.id,
-				reason: 'Off topic',
+				reason: 'off_topic',
 				reporterTokenHash: fakeHash()
 			},
 			{
 				targetType: 'comment',
 				targetId: flagged.id,
-				reason: 'Spam or advertising',
+				reason: 'spam',
 				reporterTokenHash: fakeHash()
 			}
 		]);
@@ -538,36 +561,13 @@ async function recount() {
 }
 
 async function resetSample() {
-	const concerns = await db
-		.select({ id: t.concern.id })
-		.from(t.concern)
-		.where(eq(t.concern.source, 'seed'));
-	const posts = await db.select({ id: t.post.id }).from(t.post).where(eq(t.post.source, 'seed'));
-	const cIds = concerns.map((r) => r.id);
-	const pIds = posts.map((r) => r.id);
-	if (cIds.length) {
-		const props = await db
-			.select({ id: t.proposal.id })
-			.from(t.proposal)
-			.where(inArray(t.proposal.concernId, cIds));
-		const prIds = props.map((r) => r.id);
-		if (prIds.length) {
-			await db
-				.delete(t.comment)
-				.where(and(eq(t.comment.parentType, 'proposal'), inArray(t.comment.parentId, prIds)));
-		}
-		await db
-			.delete(t.comment)
-			.where(and(eq(t.comment.parentType, 'concern'), inArray(t.comment.parentId, cIds)));
-		await db.delete(t.concern).where(inArray(t.concern.id, cIds));
-	}
-	if (pIds.length) {
-		await db
-			.delete(t.comment)
-			.where(and(eq(t.comment.parentType, 'post'), inArray(t.comment.parentId, pIds)));
-		await db.delete(t.post).where(inArray(t.post.id, pIds));
-	}
-	console.log(`Removed sample content: ${cIds.length} concerns, ${pIds.length} posts.`);
+	// Comments, supports, reactions and reports go with their parent (foreign-key cascade).
+	const c = await db
+		.delete(t.concern)
+		.where(eq(t.concern.source, 'seed'))
+		.returning({ id: t.concern.id });
+	const p = await db.delete(t.post).where(eq(t.post.source, 'seed')).returning({ id: t.post.id });
+	console.log(`Removed sample content: ${c.length} concerns, ${p.length} posts.`);
 }
 
 try {

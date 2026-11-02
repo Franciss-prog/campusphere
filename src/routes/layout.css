@@ -147,6 +147,23 @@
 /* Shared components (ported from the app prototype)                   */
 /* ------------------------------------------------------------------ */
 @layer components {
+	/* Proposal staff adopted as the plan for its concern. #15803d keeps AA contrast at 13px. */
+	.adopted {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
+		font-weight: 700;
+		color: #15803d;
+		margin: 0 10px 4px 0;
+	}
+	.adopted::before {
+		content: '';
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: currentColor;
+	}
 	.disp {
 		font-family: var(--font-display);
 		font-weight: 700;

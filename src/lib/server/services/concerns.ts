@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { attachMedia } from '../images.ts';
 import { db, t } from '../db/index.ts';
 import { audit } from '../audit.ts';
 import { checkTransition, STATUSES, type ConcernStatus } from '#lib/status.ts';
@@ -251,6 +252,7 @@ export async function createConcern(input: {
 			})
 			.returning({ id: t.concern.id });
 		await tx.insert(t.statusHistory).values({ concernId: row.id, status: 'submitted' });
+		await attachMedia(tx, input.images, { concernId: row.id });
 		if (input.tagIds?.length) {
 			await tx
 				.insert(t.concernTag)

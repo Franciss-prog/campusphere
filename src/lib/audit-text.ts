@@ -48,6 +48,10 @@ export function describeAudit(a: {
 			return `signed in`;
 		case 'setting.change':
 			return `changed the setting ${m.key}`;
+		case 'proposal.adopt':
+			return `adopted ${target} as the plan for concern #${m.concernId}`;
+		case 'proposal.unadopt':
+			return `withdrew adoption of ${target}`;
 		case 'post.official':
 			return `published an official post`;
 		default:

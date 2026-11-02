@@ -2,19 +2,13 @@ import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { db, t } from '../db/index.ts';
 import { audit, type AuditAction } from '../audit.ts';
 import { getSettings } from '../settings.ts';
+import { REPORT_REASON_LABEL, type ReportReason } from '#lib/report-reasons.ts';
 import { bumpCommentCount, type ParentType } from './comments.ts';
 
 export type TargetType = 'post' | 'concern' | 'proposal' | 'comment';
 export type Visibility = 'published' | 'pending' | 'hidden';
 
-export const REPORT_REASONS = [
-	'Names or targets a private person',
-	'Harassment or abusive language',
-	'Spam or advertising',
-	'Off topic',
-	'Safety concern',
-	'Something else'
-] as const;
+export { REPORT_REASONS } from '#lib/report-reasons.ts';
 
 type Tx = Parameters<Parameters<ReturnType<typeof db>['transaction']>[0]>[0];
 
@@ -84,7 +78,7 @@ export async function setVisibility(tx: Tx, type: TargetType, id: number, to: Vi
 export async function fileReport(input: {
 	targetType: TargetType;
 	targetId: number;
-	reason: string;
+	reason: ReportReason;
 	details: string | null;
 	tokenHash: string;
 }): Promise<{ ok: true; autoHidden: boolean } | { ok: false; message: string }> {
@@ -324,7 +318,7 @@ export async function moderationQueue(): Promise<QueueItem[]> {
 			...k,
 			reasons: reasons
 				.filter((r) => r.targetType === k.targetType && r.targetId === k.targetId)
-				.map((r) => ({ reason: r.reason, n: r.n })),
+				.map((r) => ({ reason: REPORT_REASON_LABEL[r.reason], n: r.n })),
 			...d
 		});
 	}

@@ -7,7 +7,7 @@
 	import StatusPill from '#lib/components/ui/StatusPill.svelte';
 	import { noteRequired, STATUS_LABEL, STATUSES, type ConcernStatus } from '#lib/status.ts';
 	import { shortDate, withParams } from '#lib/format.ts';
-	import { formState } from '#lib/form-state.ts';
+	import { formState, stay } from '#lib/form-state.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -15,10 +15,11 @@
 	const sel = $derived(data.selected);
 	let next = $derived<ConcernStatus>(sel?.status ?? 'submitted');
 	let saving = $state(false);
-	let flash = $state<string | null>(null);
+	// Success notice travels in the URL (`?saved=1`): the navigation after saving remounts the page.
+	const saved = $derived(page.url.searchParams.get('saved') === '1');
 
-	const openHref = (id: number) => withParams(page.url, { update: id, page: null });
-	const closeHref = $derived(withParams(page.url, { update: null, page: null }));
+	const openHref = (id: number) => withParams(page.url, { update: id, page: null, saved: null });
+	const closeHref = $derived(withParams(page.url, { update: null, page: null, saved: null }));
 	function close() {
 		goto(closeHref, { replace: true, reset: false });
 	}
@@ -32,7 +33,10 @@
 	subtitle="Update the status. Every change is public and logged."
 />
 
-{#if flash}<p class="flash ok mt-5" role="status">{flash}</p>{/if}
+<!-- `saved` covers the enhanced status form; `f` covers the no-JS submit and the adopt form. -->
+{#if saved || (f?.ok && f.message)}<p class="flash ok mt-5" role="status">
+		{f?.ok && f.message ? f.message : 'Status saved. The public timeline is updated.'}
+	</p>{/if}
 {#if !data.canChange}
 	<p class="notice mt-5"><b>View only</b>Only administrators can change a concern's status.</p>
 {/if}
@@ -123,10 +127,13 @@
 				return async ({ result, update }) => {
 					saving = false;
 					if (result.type === 'success') {
-						flash = String(result.data?.message ?? 'Saved.');
-						await goto(closeHref, { replace: true, reset: false, refreshAll: true });
+						await goto(withParams(page.url, { update: null, page: null, saved: 1 }), {
+							replace: true,
+							reset: false,
+							refreshAll: true
+						});
 					} else {
-						await update({ reset: false });
+						await update({ reset: false, navigate: false });
 					}
 				};
 			}}
@@ -172,6 +179,36 @@
 				>
 			</div>
 		</form>
+		{#if sel.proposals.length}
+			<h3 class="hh">Proposals</h3>
+			<ul class="props">
+				{#each sel.proposals as p (p.id)}
+					<li>
+						<span
+							>{p.title}<small
+								>{p.supportCount} support{p.supportCount === 1 ? '' : 's'}{p.visibility !==
+								'published'
+									? ` · ${p.visibility}`
+									: ''}</small
+							></span
+						>
+						{#if p.visibility === 'published'}
+							<form method="POST" action="?/adopt" use:enhance={stay}>
+								<input type="hidden" name="proposalId" value={p.id} />
+								<input type="hidden" name="adopt" value={p.adopted ? '0' : '1'} />
+								<button
+									class="btn btn-sm {p.adopted ? 'btn-p' : 'btn-o'}"
+									type="submit"
+									aria-pressed={p.adopted}
+									aria-label="{p.adopted ? 'Withdraw adoption of' : 'Adopt'} {p.title}"
+									>{p.adopted ? 'Adopted' : 'Adopt'}</button
+								>
+							</form>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		<h3 class="hh">History</h3>
 		<ul class="hist">
 			{#each sel.history as h (h.id)}
@@ -182,6 +219,25 @@
 </SlideOver>
 
 <style>
+	.props {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 8px;
+		display: grid;
+		gap: 10px;
+	}
+	.props li {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		font-size: 15px;
+	}
+	.props small {
+		display: block;
+		color: var(--muted);
+		font-size: 13px;
+	}
 	.stale {
 		display: block;
 		color: var(--red-d) !important;

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db, t } from '../db/index.ts';
 import { audit } from '../audit.ts';
 import { hashPassword } from '../password.ts';
+import { TEMP_PASSWORD_MS } from '../auth.ts';
 import { slugify } from '../sanitize.ts';
 import type { ConcernStatus } from '#lib/status.ts';
 
@@ -100,7 +101,9 @@ export async function listStaff() {
 		.select({
 			id: t.staffUser.id,
 			email: t.staffUser.email,
+			displayName: t.staffUser.displayName,
 			role: t.staffUser.role,
+			pendingSetup: t.staffUser.mustChangePassword,
 			lastLoginAt: t.staffUser.lastLoginAt,
 			createdAt: t.staffUser.createdAt
 		})
@@ -113,6 +116,10 @@ export async function listStaff() {
 export async function inviteStaff(byId: number, email: string, role: 'ADMIN' | 'MODERATOR') {
 	const temp = randomBytes(12).toString('base64url');
 	const passwordHash = await hashPassword(temp);
+	const temporary = {
+		mustChangePassword: true,
+		tempPasswordExpiresAt: new Date(Date.now() + TEMP_PASSWORD_MS)
+	};
 	const [existing] = await db().select().from(t.staffUser).where(eq(t.staffUser.email, email));
 	if (existing && !existing.disabledAt)
 		return { ok: false as const, message: 'This email already has an account.' };
@@ -120,14 +127,14 @@ export async function inviteStaff(byId: number, email: string, role: 'ADMIN' | '
 		? (
 				await db()
 					.update(t.staffUser)
-					.set({ passwordHash, role, disabledAt: null })
+					.set({ passwordHash, role, disabledAt: null, ...temporary })
 					.where(eq(t.staffUser.id, existing.id))
 					.returning({ id: t.staffUser.id })
 			)[0].id
 		: (
 				await db()
 					.insert(t.staffUser)
-					.values({ email, passwordHash, role })
+					.values({ email, passwordHash, role, ...temporary })
 					.returning({ id: t.staffUser.id })
 			)[0].id;
 	await audit({

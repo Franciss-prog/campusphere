@@ -53,6 +53,16 @@ export const actions: Actions = {
 		if (!user || !ok || user.disabledAt) {
 			return fail(400, { email, message: 'That email and password do not match.' });
 		}
+		if (
+			user.mustChangePassword &&
+			user.tempPasswordExpiresAt &&
+			user.tempPasswordExpiresAt.getTime() < Date.now()
+		) {
+			return fail(400, {
+				email,
+				message: 'This temporary password has expired. Ask an administrator for a new one.'
+			});
+		}
 
 		await db()
 			.update(t.staffUser)
@@ -60,6 +70,9 @@ export const actions: Actions = {
 			.where(eq(t.staffUser.id, user.id));
 		await createSession(event.cookies, user.id);
 		await audit({ staffId: user.id, action: 'staff.login' });
-		redirect(303, safeNext(event.url.searchParams.get('next')));
+		redirect(
+			303,
+			user.mustChangePassword ? '/admin/account' : safeNext(event.url.searchParams.get('next'))
+		);
 	}
 };

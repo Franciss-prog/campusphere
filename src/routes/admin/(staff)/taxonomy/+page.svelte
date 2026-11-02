@@ -23,7 +23,7 @@
 	// Which row has an open inline editor: `${kind}:${id}:${mode}`
 	let open = $state<string | null>(null);
 	const toggle = (k: string) => (open = open === k ? null : k);
-	const opts = { reset: true };
+	const opts = { reset: true, navigate: false };
 </script>
 
 <svelte:head><title>Categories and tags | Campusphere staff</title></svelte:head>

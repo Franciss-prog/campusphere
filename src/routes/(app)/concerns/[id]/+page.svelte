@@ -122,6 +122,7 @@
 					>
 						<div class="ptop">
 							<div>
+								{#if p.adopted}<span class="adopted">Adopted by staff</span>{/if}
 								{#if i === 0 && data.psort === 'supported' && p.supportCount > 0}
 									<span class="bestlbl">Most supported</span>
 								{/if}
@@ -182,7 +183,7 @@
 									if (result.type === 'success') {
 										proposeMsg = String(result.data?.message ?? 'Posted.');
 									}
-									await update({ reset: result.type === 'success' });
+									await update({ reset: result.type === 'success', navigate: false });
 								};
 							}}
 						>

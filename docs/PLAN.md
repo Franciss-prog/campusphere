@@ -82,17 +82,20 @@ src/
 - `concern` (id, kind `concern|recommendation`, title, description, category_id, location, images jsonb, current_status, is_sensitive, visibility, support_count, comment_count, author_token_hash, source, search tsvector, created_at, updated_at, status_changed_at) + `concern_tag`
 - `concern_support` (concern_id, token_hash) unique — concern-level "Support" seen on cards and the detail rail
 - `status_history` (id, concern_id, status, public_note, changed_by_id, created_at)
-- `proposal` (id, concern_id, title, description, feasibility_notes, support_count, comment_count, visibility, author_token_hash, created_at)
+- `proposal` (id, concern_id, title, description, feasibility_notes, adopted_at, adopted_by_id, support_count, comment_count, visibility, author_token_hash, created_at, updated_at). `adopted_at` marks the proposal staff chose as the plan (badge "Adopted by staff").
 - `proposal_support` (proposal_id, token_hash) unique
-- `comment` (id, parent_type `post|concern|proposal`, parent_id, parent_comment_id, body, anon_label_seed, visibility, author_token_hash, created_at)
+- `comment` (id, parent_type `post|concern|proposal`, parent_id, parent_comment_id → comment, body, anon_label_seed, visibility, author_token_hash, created_at)
 - `reaction` (target_type, target_id, type, token_hash) unique
-- `report` (id, target_type, target_id, reason, details, status `open|actioned|dismissed`, reporter_token_hash, created_at, resolved_by_id, resolved_at), unique open report per reporter + target
-- `staff_user` (id, email, password_hash, role `ADMIN|MODERATOR`, created_at, last_login_at, disabled_at) + `staff_session` (id = sha256(token), staff_id, expires_at)
-- `audit_log` (id, staff_id, action, target_type, target_id, meta jsonb, created_at)
+- `report` (id, target_type, target_id, reason enum `private_person|harassment|spam|off_topic|safety|other`, details, status `open|actioned|dismissed`, reporter_token_hash, created_at, resolved_by_id, resolved_at), unique open report per reporter + target
+- Polymorphic integrity (v2): `comment`, `reaction` and `report` keep the (type, id) pair the app uses, plus one generated stored column per parent kind (`post_id`, `concern_id`, `proposal_id`, `comment_id`) that holds the id only when the type matches. Each has a real foreign key with `ON DELETE CASCADE`, so links to missing rows are rejected and deleting a post/concern/proposal/comment removes its discussion, reactions and reports.
+- `media` (key PK, concern_id, post_id, bytes, created_at): ledger of every uploaded object. Inserted unowned at upload, attached in the transaction that creates the concern/post, `ON DELETE SET NULL`. `bun run db:prune-media` deletes objects unowned for 24 h+. Hidden items keep their images.
+- `staff_user` (id, email, display_name, password_hash, role `ADMIN|MODERATOR`, must_change_password, temp_password_expires_at, created_at, last_login_at, disabled_at) + `staff_session` (id = sha256(token), staff_id, expires_at). Invites set a 72 h temporary password; until it is changed the account can reach only `/admin/account`.
+- `audit_log` (id, staff_id, action, target_type enum, target_id, meta jsonb, created_at)
 - `rate_limit` (key, window_start, count) PK(key, window_start)
 - `setting` (key, value jsonb): `moderation_mode` (`post`|`pre`), `auto_hide_threshold` (default 3), `word_filter` list
 
 Indexes: visibility+current_status, category_id, created_at, support_count; GIN on `search`.
+Cached counters (`like_count`, `support_count`, `comment_count`, `proposal_count`) are maintained in the write paths; `bun run db:reconcile` recomputes them from the rows (`--check` reports only).
 Extensibility hooks (not built): `source` column on content, `verified` office accounts can be a staff role later.
 
 ## 5. Status flow
