@@ -3,6 +3,11 @@
 //   bun run db:seed            insert (refuses if sample content already exists)
 //   bun run db:seed --reset    delete previous sample content (source = 'seed') first
 //   bun run db:seed --base     only taxonomy, settings and the official post (no sample content)
+//   bun run db:seed --limit=5  only the first 5 sample concerns and up to 5 sample posts
+//   bun run db:seed --concerns-only   concerns (status history, tags, supports) without proposals,
+//                                     comments, blog posts or reports
+//   bun run db:seed --no-supports     sample items start with 0 supports and likes (no fake voters)
+//   bun run db:seed --remove   delete sample content and stop (base data is kept)
 //
 // Refuses to run against the Neon `production` branch unless --allow-production is passed.
 import { randomBytes } from 'node:crypto';
@@ -15,6 +20,12 @@ import { STATUSES, type ConcernStatus } from '../src/lib/status.ts';
 import { DEFAULT_SETTINGS } from '../src/lib/server/settings-defaults.ts';
 
 const args = new Set(process.argv.slice(2));
+const limitArg = [...args].find((a) => a.startsWith('--limit='));
+const CONCERNS_ONLY = args.has('--concerns-only');
+const NO_SUPPORTS = args.has('--no-supports');
+/** Sample support/like count, or 0 with --no-supports. */
+const votes = (n: number) => (NO_SUPPORTS ? 0 : n);
+const LIMIT = limitArg ? Math.max(1, Number(limitArg.slice(8)) || 1) : Infinity;
 const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL_UNPOOLED is not set (run `neon env pull`)');
 if (process.env.NEON_BRANCH === 'production' && !args.has('--allow-production')) {
@@ -396,7 +407,9 @@ async function seedSample() {
 	const tags = await db.select().from(t.tag);
 	const tagId = (slug: string) => tags.find((x) => x.slug === slug)!.id;
 
-	for (const c of CONCERNS) {
+	const concerns = CONCERNS.slice(0, LIMIT);
+	const posts = CONCERNS_ONLY ? [] : SAMPLE_POSTS.slice(0, LIMIT);
+	for (const c of concerns) {
 		const created = ago(c.days, 3);
 		const path: ConcernStatus[] =
 			c.status === 'closed'
@@ -411,7 +424,7 @@ async function seedSample() {
 				categoryId: catId('concern', c.category),
 				location: c.location ?? null,
 				currentStatus: c.status,
-				supportCount: c.supports,
+				supportCount: votes(c.supports),
 				authorTokenHash: fakeHash(),
 				source: 'seed',
 				createdAt: created,
@@ -419,7 +432,7 @@ async function seedSample() {
 				statusChangedAt: created
 			})
 			.returning({ id: t.concern.id });
-		if (c.supports) {
+		if (votes(c.supports)) {
 			await db
 				.insert(t.concernSupport)
 				.values(fakeVoters(c.supports).map((tokenHash) => ({ concernId: row.id, tokenHash })));
@@ -446,7 +459,7 @@ async function seedSample() {
 				.insert(t.concernTag)
 				.values(c.tags.map((s) => ({ concernId: row.id, tagId: tagId(s) })));
 		}
-		for (const [i, p] of (c.proposals ?? []).entries()) {
+		for (const [i, p] of (CONCERNS_ONLY ? [] : (c.proposals ?? [])).entries()) {
 			const [prop] = await db
 				.insert(t.proposal)
 				.values({
@@ -454,13 +467,13 @@ async function seedSample() {
 					title: p.title,
 					description: p.description,
 					feasibilityNotes: p.feasibility ?? null,
-					supportCount: p.supports,
+					supportCount: votes(p.supports),
 					authorTokenHash: fakeHash(),
 					source: 'seed',
 					createdAt: ago(Math.max(c.days - 1 - i, 0))
 				})
 				.returning({ id: t.proposal.id });
-			if (p.supports) {
+			if (votes(p.supports)) {
 				await db
 					.insert(t.proposalSupport)
 					.values(fakeVoters(p.supports).map((tokenHash) => ({ proposalId: prop.id, tokenHash })));
@@ -476,7 +489,7 @@ async function seedSample() {
 				});
 			}
 		}
-		for (const [i, body] of (c.comments ?? []).entries()) {
+		for (const [i, body] of (CONCERNS_ONLY ? [] : (c.comments ?? [])).entries()) {
 			await db.insert(t.comment).values({
 				parentType: 'concern',
 				parentId: row.id,
@@ -488,7 +501,7 @@ async function seedSample() {
 		}
 	}
 
-	for (const p of SAMPLE_POSTS) {
+	for (const p of posts) {
 		const [post] = await db
 			.insert(t.post)
 			.values({
@@ -501,13 +514,13 @@ async function seedSample() {
 				bodyMd: p.body,
 				bodyHtml: renderMarkdown(p.body),
 				categoryId: catId('blog', p.category),
-				likeCount: p.likes,
+				likeCount: votes(p.likes),
 				authorTokenHash: fakeHash(),
 				source: 'seed',
 				createdAt: ago(p.days)
 			})
 			.returning({ id: t.post.id });
-		if (p.likes) {
+		if (votes(p.likes)) {
 			await db.insert(t.reaction).values(
 				fakeVoters(p.likes).map((tokenHash) => ({
 					targetType: 'post' as const,
@@ -525,7 +538,7 @@ async function seedSample() {
 		.innerJoin(t.concern, eq(t.concern.id, t.comment.parentId))
 		.where(and(eq(t.comment.parentType, 'concern'), eq(t.concern.source, 'seed')))
 		.limit(1);
-	if (flagged) {
+	if (flagged && !CONCERNS_ONLY) {
 		await db.insert(t.report).values([
 			{
 				targetType: 'comment',
@@ -543,7 +556,7 @@ async function seedSample() {
 	}
 
 	await recount();
-	console.log(`Sample content ready: ${CONCERNS.length} concerns, ${SAMPLE_POSTS.length} posts.`);
+	console.log(`Sample content ready: ${concerns.length} concerns, ${posts.length} posts.`);
 }
 
 /** Denormalized counters (comments, proposals) recomputed from rows. */
@@ -571,8 +584,12 @@ async function resetSample() {
 }
 
 try {
-	await seedBase();
-	if (!args.has('--base')) {
+	if (args.has('--remove')) {
+		await resetSample();
+	} else {
+		await seedBase();
+	}
+	if (!args.has('--base') && !args.has('--remove')) {
 		if (args.has('--reset')) await resetSample();
 		const [{ n }] = await db
 			.select({ n: sql<number>`count(*)::int` })
