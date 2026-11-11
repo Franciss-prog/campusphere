@@ -5,6 +5,19 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	// sanitize-html require()s the ESM-only htmlparser2; Vercel's Node loader rejects that
+	// (ERR_REQUIRE_ESM), so bundle it into the server output instead of loading it at runtime.
+	ssr: {
+		noExternal: [
+			'sanitize-html',
+			'htmlparser2',
+			'domhandler',
+			'domutils',
+			'dom-serializer',
+			'domelementtype',
+			'entities'
+		]
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit({
