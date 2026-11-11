@@ -1,4 +1,19 @@
 import { expect, test } from '@playwright/test';
+import pg from 'pg';
+
+// Remove what the run created (comments, proposals, reports and history cascade with the concern)
+// and reset rate limits, so repeated runs on the dev branch neither pile up nor lock themselves out.
+test.afterAll(async () => {
+	if (process.env.NEON_BRANCH === 'production' || !process.env.DATABASE_URL_UNPOOLED) return;
+	const c = new pg.Client({ connectionString: process.env.DATABASE_URL_UNPOOLED });
+	await c.connect();
+	try {
+		await c.query(`delete from concern where title like 'E2E test concern %' and source <> 'seed'`);
+		await c.query(`delete from rate_limit`);
+	} finally {
+		await c.end();
+	}
+});
 
 // Report a concern, comment, propose a solution, then an admin updates the status and the
 // public timeline reflects it.
