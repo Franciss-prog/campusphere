@@ -31,12 +31,11 @@
 	});
 	const n = $derived(words.length);
 	const op = (i: number) =>
-		(0.14 + 0.86 * Math.min(1, Math.max(0, progress * (n + 4) - i))).toFixed(2);
+		(0.3 + 0.7 * Math.min(1, Math.max(0, progress * (n + 4) - i))).toFixed(2);
 </script>
 
 <p class={className} bind:this={el}>
-	{#each words as w, i (i)}<span style="opacity:{op(i)}">{w}</span>
-	{/each}
+	{#each words as w, i (i)}<span style="opacity:{op(i)}">{w}</span>{' '}{/each}
 </p>
 
 <style>

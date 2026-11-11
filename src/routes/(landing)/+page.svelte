@@ -700,7 +700,7 @@
 	}
 	.vm .row {
 		display: grid;
-		grid-template-columns: 260px 1fr;
+		grid-template-columns: 260px minmax(0, 1fr);
 		gap: 40px;
 	}
 	.vm .row + .row {
