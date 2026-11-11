@@ -15,7 +15,18 @@ export default defineConfig({
 			'domutils',
 			'dom-serializer',
 			'domelementtype',
-			'entities'
+			'entities',
+			// CJS deps too: left external, they are require()d at runtime and Vercel's file
+			// tracer misses them ("Cannot find module").
+			'escape-string-regexp',
+			'is-plain-object',
+			'parse-srcset',
+			'postcss',
+			'launder',
+			'dayjs',
+			'nanoid',
+			'picocolors',
+			'source-map-js'
 		]
 	},
 	plugins: [
