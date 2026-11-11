@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
-import adapter from '@sveltejs/adapter-bun';
+import bunAdapter from '@sveltejs/adapter-bun';
+import vercelAdapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
@@ -12,7 +13,8 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			// Vercel sets VERCEL=1 during its builds; everywhere else we build the Bun server.
+			adapter: process.env.VERCEL ? vercelAdapter({ runtime: 'nodejs22.x' }) : bunAdapter(),
 			// Nonce-based CSP for scripts. Inline style attributes are allowed because Svelte and our
 			// motion components set CSS variables via `style=`. Turnstile is the only third party.
 			csp: {
