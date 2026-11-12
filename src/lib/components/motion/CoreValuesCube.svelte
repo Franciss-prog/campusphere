@@ -102,9 +102,7 @@
 						onfocus={() => (selected = face)}
 						onblur={() => (selected = null)}
 					>
-						<b
-							>{v.name}{#if v.focus}<em>Our focus</em>{/if}</b
-						>
+						<b>{v.name}</b>
 						<span>{v.text}</span>
 					</button>
 				</li>
@@ -183,19 +181,6 @@
 		color: #f2d2cf;
 		max-width: 280px;
 		text-align: right;
-	}
-	.vrow em {
-		font-style: normal;
-		font-family: var(--font-sans);
-		letter-spacing: 0;
-		font-size: 12.5px;
-		font-weight: 700;
-		background: var(--red);
-		color: #fff;
-		padding: 4px 10px;
-		border-radius: 999px;
-		margin-left: 12px;
-		vertical-align: 6px;
 	}
 	.stage {
 		position: relative;

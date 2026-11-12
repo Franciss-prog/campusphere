@@ -47,7 +47,7 @@
 			<div class="r" aria-hidden="true">
 				{#each data.values as v (v.name)}
 					<div class:sv={v.focus}>
-						{v.name}{#if v.focus}<span>our focus</span>{/if}
+						{v.name}
 					</div>
 				{/each}
 			</div>
@@ -184,13 +184,6 @@
 		font-family: var(--font-display);
 		font-weight: 700;
 		letter-spacing: -0.04em;
-	}
-	.feat .r div span {
-		font-size: 13.5px;
-		color: #fff1ee;
-		font-family: var(--font-sans);
-		letter-spacing: 0;
-		font-weight: 500;
 	}
 	.ph {
 		height: 150px;
