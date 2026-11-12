@@ -4,31 +4,32 @@ import vercelAdapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-	// sanitize-html require()s the ESM-only htmlparser2; Vercel's Node loader rejects that
-	// (ERR_REQUIRE_ESM), so bundle it into the server output instead of loading it at runtime.
-	ssr: {
-		noExternal: [
-			'sanitize-html',
-			'htmlparser2',
-			'domhandler',
-			'domutils',
-			'dom-serializer',
-			'domelementtype',
-			'entities',
-			// CJS deps too: left external, they are require()d at runtime and Vercel's file
-			// tracer misses them ("Cannot find module").
-			'escape-string-regexp',
-			'is-plain-object',
-			'parse-srcset',
-			'postcss',
-			'launder',
-			'dayjs',
-			'nanoid',
-			'picocolors',
-			'source-map-js'
-		]
-	},
+// sanitize-html require()s the ESM-only htmlparser2; Vercel's Node loader rejects that
+// (ERR_REQUIRE_ESM), so bundle it into the server output instead of loading it at runtime.
+// Build only: Vite's dev module runner cannot evaluate these CJS packages ("require is not defined").
+const bundledForBuild = [
+	'sanitize-html',
+	'htmlparser2',
+	'domhandler',
+	'domutils',
+	'dom-serializer',
+	'domelementtype',
+	'entities',
+	// CJS deps too: left external, they are require()d at runtime and Vercel's file
+	// tracer misses them ("Cannot find module").
+	'escape-string-regexp',
+	'is-plain-object',
+	'parse-srcset',
+	'postcss',
+	'launder',
+	'dayjs',
+	'nanoid',
+	'picocolors',
+	'source-map-js'
+];
+
+export default defineConfig(({ command }) => ({
+	ssr: { noExternal: command === 'build' ? bundledForBuild : [] },
 	plugins: [
 		tailwindcss(),
 		sveltekit({
@@ -59,4 +60,4 @@ export default defineConfig({
 			}
 		})
 	]
-});
+}));
