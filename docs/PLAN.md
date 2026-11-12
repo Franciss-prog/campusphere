@@ -106,27 +106,43 @@ and `audit_log`; note required for Closed / Not Feasible. Same rule enforced in 
 
 ## 6. Route map and page patterns
 
-| Route                               | Pattern              | Prototype            |
-| ----------------------------------- | -------------------- | -------------------- |
-| `/`                                 | Landing              | landing D            |
-| `/recommendations`                  | List / Index (cards) | `s-recs`             |
-| `/concerns`                         | List / Index (table) | `s-concerns`         |
-| `/concerns/new`                     | Form                 | `s-new`              |
-| `/concerns/[id]`                    | Detail               | `s-detail`           |
-| `/solutions`                        | List / Index         | `s-hub`              |
-| `/tracker`                          | Board (read-only)    | `s-tracker`          |
-| `/blog`                             | List / Index         | `s-blog`             |
-| `/blog/new`                         | Form                 | extends `s-new`      |
-| `/blog/[slug]`                      | Article              | `s-post`             |
-| `/search`                           | List / Index         | extends `s-concerns` |
-| `/about`, `/guidelines`, `/privacy` | Content page         | `s-about`            |
-| `/admin/login`                      | Form (auth)          | `s-login`            |
-| `/admin`                            | Dashboard            | `s-dash`             |
-| `/admin/moderation`                 | Split pane           | `s-admin`            |
-| `/admin/concerns`                   | List + slide-over    | `s-acon`             |
-| `/admin/content`                    | List (table)         | extends `s-acon`     |
-| `/admin/taxonomy`                   | Settings             | `s-tax`              |
-| `/admin/users`                      | List                 | `s-users`            |
+| Route                               | Pattern              | Prototype              |
+| ----------------------------------- | -------------------- | ---------------------- |
+| `/`                                 | Landing              | landing D              |
+| `/campaigns`                        | List / Index (cards) | new (Action Campaigns) |
+| `/campaigns/[slug]`                 | Detail               | new (Action Campaigns) |
+| `/recommendations`                  | List / Index (cards) | `s-recs`               |
+| `/concerns`                         | List / Index (table) | `s-concerns`           |
+| `/concerns/new`                     | Form                 | `s-new`                |
+| `/concerns/[id]`                    | Detail               | `s-detail`             |
+| `/solutions`                        | List / Index         | `s-hub`                |
+| `/tracker`                          | Board (read-only)    | `s-tracker`            |
+| `/blog`                             | List / Index         | `s-blog`               |
+| `/blog/new`                         | Form                 | extends `s-new`        |
+| `/blog/[slug]`                      | Article              | `s-post`               |
+| `/search`                           | List / Index         | extends `s-concerns`   |
+| `/about`, `/guidelines`, `/privacy` | Content page         | `s-about`              |
+| `/admin/login`                      | Form (auth)          | `s-login`              |
+| `/admin`                            | Dashboard            | `s-dash`               |
+| `/admin/moderation`                 | Split pane           | `s-admin`              |
+| `/admin/concerns`                   | List + slide-over    | `s-acon`               |
+| `/admin/content`                    | List (table)         | extends `s-acon`       |
+| `/admin/taxonomy`                   | Settings             | `s-tax`                |
+| `/admin/users`                      | List                 | `s-users`              |
+
+### Action Campaigns (Ethics in Action)
+
+- Copy is static in v1: `CAMPAIGNS` (slug, title, summary, coreValue, actions), `OBJECTIVES` and
+  `PARTICIPATE` in `src/lib/content/site.ts`. The field names are the future `campaign` table columns.
+- Content links to a campaign through the shared `tag` table (tag slug = campaign slug), so there
+  is no migration. `/concerns/new`, `/recommendations` and `/blog/new` accept `?campaign=<slug>`;
+  the recommendations form also has an optional campaign select. Unknown slugs are ignored.
+- `src/lib/campaigns.ts` holds pure helpers (slug lookup, progress shaping, captions, value chip);
+  `src/lib/server/services/campaigns.ts` runs the grouped counts (`campaignProgress`) and feeds
+  (`campaignContent`). Only published content and aggregate numbers leave the server.
+- A missing campaign tag degrades to zeros, hidden tag controls and plain form links.
+- The landing page is organized as Discover (Awareness) → Participate (Participation) → Engage
+  (Positive change); landing sections live in `src/lib/components/landing/`.
 
 ## 7. Svelte Bits usage (verified against the sveltebits.xyz registry, `/r/<name>.json`)
 

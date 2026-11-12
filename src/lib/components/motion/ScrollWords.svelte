@@ -35,6 +35,7 @@
 </script>
 
 <p class={className} bind:this={el}>
+	<!-- eslint-disable-next-line svelte/no-useless-mustaches -- an expression keeps the space; a literal one would be trimmed -->
 	{#each words as w, i (i)}<span style="opacity:{op(i)}">{w}</span>{' '}{/each}
 </p>
 

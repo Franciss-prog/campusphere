@@ -94,3 +94,73 @@ test('concern lifecycle from report to public status update', async ({ page, bro
 	});
 	expect([303, 403]).toContain(res.status());
 });
+
+// Action Campaigns: index cards, detail page with prefilled links, and 404 for unknown slugs.
+test('action campaigns render and unknown slugs return 404', async ({ page }) => {
+	await page.goto('/campaigns');
+	await expect(page.getByRole('heading', { level: 1, name: 'Action Campaigns' })).toBeVisible();
+	for (const name of [
+		'Keep Our Campus Clean',
+		'Practice Academic Integrity',
+		'Respect Campus Facilities',
+		'Promote Responsible Student Behavior'
+	]) {
+		await expect(page.getByRole('heading', { level: 3, name })).toBeVisible();
+	}
+
+	await page.getByRole('link', { name: /Join this campaign.*Keep Our Campus Clean/ }).click();
+	await expect(page).toHaveURL(/\/campaigns\/keep-our-campus-clean$/);
+	await expect(
+		page.getByRole('heading', { level: 1, name: 'Keep Our Campus Clean' })
+	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Take part' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Suggested actions' })).toBeVisible();
+
+	// With the campaign tag seeded, the concern form arrives with the tag checked.
+	await page.locator('#take-part').getByRole('link', { name: 'Report a concern' }).click();
+	await expect(page).toHaveURL(/\/concerns\/new/);
+	if (page.url().includes('campaign=')) {
+		await expect(page.getByLabel('Keep Our Campus Clean')).toBeChecked();
+	}
+
+	const res = await page.goto('/campaigns/not-a-campaign');
+	expect(res?.status()).toBe(404);
+});
+
+// Landing: campaign-first hero, its two calls to action, and the flow anchors.
+test('landing page shows the flow sections and hero actions', async ({ page }) => {
+	await page.goto('/');
+	await expect(
+		page.getByRole('heading', { level: 1, name: 'A better campus starts with you.' })
+	).toBeVisible();
+	for (const id of ['discover', 'campaigns', 'participate', 'engage']) {
+		await expect(page.locator(`#${id}`)).toHaveCount(1);
+	}
+	const hero = page.locator('.hcopy');
+	await expect(hero.getByText('Ethics in Action Campaign')).toBeVisible();
+	await expect(hero.getByRole('link', { name: 'Take action' })).toHaveAttribute(
+		'href',
+		'/campaigns'
+	);
+	await expect(hero.getByRole('link', { name: 'Learn more' })).toHaveAttribute('href', '#discover');
+	const ribbon = page.getByRole('navigation', { name: 'How Campusphere works' });
+	for (const [name, href] of [
+		['Discover', '#discover'],
+		['Participate', '#participate'],
+		['Engage', '#engage']
+	]) {
+		await expect(ribbon.getByRole('link', { name: new RegExp(name) })).toHaveAttribute(
+			'href',
+			href
+		);
+	}
+	await expect(
+		page.getByRole('heading', {
+			level: 2,
+			name: 'Values are what we say. Campaigns are what we do.'
+		})
+	).toBeVisible();
+	await expect(
+		page.getByRole('heading', { level: 3, name: 'Keep Our Campus Clean' })
+	).toBeVisible();
+});

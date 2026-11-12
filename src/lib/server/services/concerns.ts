@@ -3,6 +3,7 @@ import { attachMedia } from '../images.ts';
 import { db, t } from '../db/index.ts';
 import { audit } from '../audit.ts';
 import { checkTransition, STATUSES, type ConcernStatus } from '#lib/status.ts';
+import type { ConcernRow } from '#lib/campaigns.ts';
 
 export type Kind = 'concern' | 'recommendation';
 export const CONCERN_SORTS = ['supported', 'newest', 'discussed', 'updated'] as const;
@@ -366,11 +367,14 @@ export async function trackerBoard(category: string | null, perColumn = 6) {
 	}));
 }
 
+/** Published totals for public counters. `reported` and `resolved` cover both kinds. */
 export async function publicStats() {
 	const [row] = await db()
 		.select({
 			reported: sql<number>`count(*)::int`,
-			resolved: sql<number>`count(*) filter (where ${t.concern.currentStatus} = 'resolved')::int`
+			resolved: sql<number>`count(*) filter (where ${t.concern.currentStatus} = 'resolved')::int`,
+			concerns: sql<number>`count(*) filter (where ${t.concern.kind} = 'concern')::int`,
+			recommendations: sql<number>`count(*) filter (where ${t.concern.kind} = 'recommendation')::int`
 		})
 		.from(t.concern)
 		.where(eq(t.concern.visibility, 'published'));
@@ -378,5 +382,33 @@ export async function publicStats() {
 		.select({ proposals: sql<number>`count(*)::int` })
 		.from(t.proposal)
 		.where(eq(t.proposal.visibility, 'published'));
-	return { reported: row.reported, resolved: row.resolved, proposals: p.proposals };
+	return {
+		reported: row.reported,
+		resolved: row.resolved,
+		concerns: row.concerns,
+		recommendations: row.recommendations,
+		proposals: p.proposals
+	};
+}
+
+export function compactConcern(c: ConcernListItem): ConcernRow {
+	return {
+		id: c.id,
+		title: c.title,
+		status: c.status,
+		categoryName: c.categoryName,
+		createdAt: c.createdAt
+	};
+}
+
+/** Newest published items of one kind (default: concerns), optionally under a tag. */
+export async function latestConcerns(
+	limit = 3,
+	opts: { kind?: Kind; tag?: string | null } = {}
+): Promise<ConcernRow[]> {
+	const { items } = await listConcerns(
+		{ kind: opts.kind ?? 'concern', tag: opts.tag, sort: 'newest', perPage: limit },
+		null
+	);
+	return items.map(compactConcern);
 }

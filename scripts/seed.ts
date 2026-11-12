@@ -18,6 +18,7 @@ import { labelSeed } from '../src/lib/server/anon-core.ts';
 import { excerptOf, renderMarkdown } from '../src/lib/server/sanitize.ts';
 import { STATUSES, type ConcernStatus } from '../src/lib/status.ts';
 import { DEFAULT_SETTINGS } from '../src/lib/server/settings-defaults.ts';
+import { CAMPAIGNS } from '../src/lib/content/site.ts';
 
 const args = new Set(process.argv.slice(2));
 const limitArg = [...args].find((a) => a.startsWith('--limit='));
@@ -90,6 +91,11 @@ async function seedBase() {
 	await db
 		.insert(t.tag)
 		.values(TAGS.map((name) => ({ name, slug: name })))
+		.onConflictDoNothing();
+	// Action Campaigns: one tag per campaign (slug = campaign slug), with a display name.
+	await db
+		.insert(t.tag)
+		.values(CAMPAIGNS.map((c) => ({ name: c.title, slug: c.slug })))
 		.onConflictDoNothing();
 	await db
 		.insert(t.setting)
@@ -170,7 +176,7 @@ const CONCERNS: SampleConcern[] = [
 		status: 'in_progress',
 		days: 9,
 		supports: 36,
-		tags: ['safety', 'water'],
+		tags: ['safety', 'water', 'respect-campus-facilities'],
 		notes: {
 			under_review: 'Forwarded to the responsible office for assessment.',
 			in_discussion: 'Students shared photos and proposed solutions below.',
@@ -292,7 +298,7 @@ const CONCERNS: SampleConcern[] = [
 		status: 'resolved',
 		days: 24,
 		supports: 33,
-		tags: ['water'],
+		tags: ['water', 'respect-campus-facilities'],
 		notes: { resolved: 'The fountain was repaired and tested. Thank you for reporting it.' }
 	},
 	{
@@ -366,10 +372,61 @@ const CONCERNS: SampleConcern[] = [
 		days: 0,
 		supports: 6,
 		tags: ['canteen']
+	},
+	{
+		kind: 'concern',
+		title: 'Not enough trash bins near the canteen and covered court',
+		description:
+			'There are only two bins between the canteen and the covered court, and they overflow by noon. Wrappers end up on the ground and in the plant boxes.',
+		category: 'facilities',
+		location: 'Between the canteen and the covered court',
+		status: 'in_discussion',
+		days: 3,
+		supports: 21,
+		tags: ['canteen', 'keep-our-campus-clean'],
+		comments: ['The bins near the stairs are full by 11 AM most days.']
+	},
+	{
+		kind: 'recommendation',
+		title: 'Add waste segregation bins and labels around campus',
+		description:
+			'Add more waste segregation bins with clear labels for biodegradable, recyclable, and residual waste, starting with the busiest walkways.',
+		category: 'facilities',
+		status: 'resolved',
+		days: 14,
+		supports: 31,
+		tags: ['keep-our-campus-clean'],
+		notes: { resolved: 'Labelled segregation bins were placed along the main walkway.' }
+	},
+	{
+		kind: 'recommendation',
+		title: 'Remind everyone to switch off fans and lights after class',
+		description:
+			'A small sign near each door asking the last person out to turn off the lights and fans would save power and keep the rooms in good shape.',
+		category: 'facilities',
+		status: 'submitted',
+		days: 1,
+		supports: 9,
+		tags: ['respect-campus-facilities']
 	}
 ];
 
-const SAMPLE_POSTS = [
+const SAMPLE_POSTS: {
+	category: string;
+	title: string;
+	body: string;
+	days: number;
+	likes: number;
+	tags?: string[];
+}[] = [
+	{
+		category: 'guide',
+		title: 'Citing sources without the stress',
+		body: 'A short routine that keeps your work honest and saves time before deadlines.\n\n## While you read\n\nCopy the author, title, and link into your notes the moment you use an idea.\n\n## Before you submit\n\nCheck that every quote and borrowed idea has a citation. When unsure, ask your instructor.',
+		days: 2,
+		likes: 18,
+		tags: ['practice-academic-integrity']
+	},
 	{
 		category: 'guide',
 		title: 'Enrollment tips that actually work',
@@ -520,6 +577,9 @@ async function seedSample() {
 				createdAt: ago(p.days)
 			})
 			.returning({ id: t.post.id });
+		if (p.tags?.length) {
+			await db.insert(t.postTag).values(p.tags.map((s) => ({ postId: post.id, tagId: tagId(s) })));
+		}
 		if (votes(p.likes)) {
 			await db.insert(t.reaction).values(
 				fakeVoters(p.likes).map((tokenHash) => ({

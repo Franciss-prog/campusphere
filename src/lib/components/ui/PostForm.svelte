@@ -12,7 +12,8 @@
 		initial = {},
 		mode = 'new',
 		isStaff = false,
-		cancelHref = '/blog'
+		cancelHref = '/blog',
+		checkedTags = []
 	}: {
 		f: FormState | null;
 		categories: { id: number; name: string }[];
@@ -21,6 +22,8 @@
 		mode?: 'new' | 'edit';
 		isStaff?: boolean;
 		cancelHref?: string;
+		/** Tag ids checked initially (for example a campaign from `?campaign=`). */
+		checkedTags?: number[];
 	} = $props();
 
 	const v = (k: 'title' | 'body' | 'category') => val(f, k) || initial[k] || '';
@@ -98,7 +101,7 @@
 	</div>
 
 	{#if mode === 'new'}
-		<details class="more" open={!!err('photo')}>
+		<details class="more" open={!!err('photo') || checkedTags.length > 0}>
 			<summary>Add more details (optional)</summary>
 			<div class="mt-5">
 				<div class="f">
@@ -126,7 +129,13 @@
 						<div class="flex flex-wrap gap-2">
 							{#each tags as tg (tg.id)}
 								<label class="tg"
-									><input type="checkbox" name="tags" value={tg.id} /> {tg.name}</label
+									><input
+										type="checkbox"
+										name="tags"
+										value={tg.id}
+										checked={checkedTags.includes(tg.id)}
+									/>
+									{tg.name}</label
 								>
 							{/each}
 						</div>

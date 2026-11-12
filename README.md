@@ -90,6 +90,22 @@ Proposed concern statuses:
 - Resolved
 - Closed / Not Feasible
 
+### 5. Action Campaigns (Ethics in Action)
+
+Campaigns turn the Red Spartan core values into everyday habits. Each campaign has a short
+explanation, the core value it puts into practice, and three suggested actions.
+
+- Keep Our Campus Clean
+- Practice Academic Integrity
+- Respect Campus Facilities
+- Promote Responsible Student Behavior
+
+Students can report a concern, share a recommendation, or write an article as part of a campaign,
+and everyone can see each campaign's progress (articles, concerns, recommendations, and resolved
+items). The landing page follows the same flow: **Awareness → Participation → Positive change**.
+Campaign copy and the value of each campaign are drafts for the campaign team to confirm
+(`CAMPAIGNS` in `src/lib/content/site.ts`).
+
 ## How It Works
 
 Campusphere follows a continuous improvement cycle:

@@ -1,26 +1,35 @@
 <script lang="ts">
 	import AnimatedHeading from '#lib/components/motion/AnimatedHeading.svelte';
 	import CoreValuesCube from '#lib/components/motion/CoreValuesCube.svelte';
-	import CountUp from '#lib/components/motion/CountUp.svelte';
 	import Magnetic from '#lib/components/motion/Magnetic.svelte';
 	import ScrollWords from '#lib/components/motion/ScrollWords.svelte';
 	import { reducedMotion } from '#lib/components/motion/reduced.svelte.ts';
 	import { spotlight } from '#lib/components/motion/spotlight.ts';
+	import CampaignCard from '#lib/components/campaigns/CampaignCard.svelte';
+	import Engage from '#lib/components/landing/Engage.svelte';
+	import Eyebrow from '#lib/components/landing/Eyebrow.svelte';
+	import LatestFeed from '#lib/components/landing/LatestFeed.svelte';
+	import Objectives from '#lib/components/landing/Objectives.svelte';
+	import ParticipatePaths from '#lib/components/landing/ParticipatePaths.svelte';
 	import Icon from '#lib/components/ui/Icon.svelte';
-	import { CYCLE } from '#lib/content/site.ts';
-	import { STATUS_LABEL } from '#lib/status.ts';
+	import { CAMPAIGNS, CYCLE } from '#lib/content/site.ts';
+	import type { CampaignProgress } from '#lib/campaigns.ts';
 	import { plural } from '#lib/format.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const reduce = reducedMotion();
 
-	const LINKS = [
-		['/blog', 'Blog'],
-		['/concerns', 'Concerns'],
-		['/solutions', 'Solution Hub'],
-		['/tracker', 'Tracker']
+	// The page follows one flow: Awareness → Participation → Positive change.
+	const FLOW = [
+		{ id: 'discover', label: 'Discover', step: 'Awareness' },
+		{ id: 'participate', label: 'Participate', step: 'Participation' },
+		{ id: 'engage', label: 'Engage', step: 'Positive change' }
 	] as const;
+	const LINKS = [
+		...FLOW.map((f) => [`#${f.id}`, f.label] as const),
+		['/campaigns', 'Campaigns'] as const
+	];
 
 	// ---- Draggable notes (decorative; pointer only, hidden from assistive tech) ----
 	function draggable(node: HTMLElement) {
@@ -65,50 +74,6 @@
 		};
 	}
 
-	// ---- Typing loop in the compose note (example text, not data) ----
-	const PHRASES = [
-		'The ramp at the old gym is too steep',
-		'Wi-Fi drops in the third-floor rooms',
-		'We need more outlets in the library'
-	];
-	let typed = $state(PHRASES[0]);
-	$effect(() => {
-		if (reduce.value) {
-			typed = PHRASES[0];
-			return;
-		}
-		let pi = 0,
-			ci = 0,
-			del = false,
-			timer: ReturnType<typeof setTimeout>;
-		const tick = () => {
-			const p = PHRASES[pi];
-			typed = p.slice(0, ci);
-			if (!del) {
-				ci++;
-				if (ci > p.length) {
-					del = true;
-					timer = setTimeout(tick, 1800);
-					return;
-				}
-				timer = setTimeout(tick, 55);
-				return;
-			}
-			ci -= 2;
-			if (ci <= 0) {
-				ci = 0;
-				del = false;
-				pi = (pi + 1) % PHRASES.length;
-				timer = setTimeout(tick, 400);
-				return;
-			}
-			timer = setTimeout(tick, 22);
-		};
-		ci = 0;
-		tick();
-		return () => clearTimeout(timer);
-	});
-
 	// ---- Steps progress line ----
 	let srow: HTMLElement | undefined = $state();
 	let progress = $state(1);
@@ -137,20 +102,36 @@
 		};
 	});
 
-	const marquee = $derived(data.marquee.length ? [...data.marquee, ...data.marquee] : []);
+	// Hero stickers: one pinned note per campaign (decorative; the cards below hold the links).
+	const STICKERS = [
+		{ x: 'calc(100% - 570px)', y: '150px', r: '-3deg', d: '0s', s: '1.3s' },
+		{ x: 'calc(100% - 300px)', y: '124px', r: '3deg', d: '1.2s', s: '1.5s' },
+		{ x: 'calc(100% - 550px)', y: '420px', r: '2deg', d: '.6s', s: '1.7s' },
+		{ x: 'calc(100% - 290px)', y: '400px', r: '-2.5deg', d: '2s', s: '1.9s' }
+	];
+
+	// Marquee: every campaign's suggested actions, so the band reads as a call to act.
+	const ACTIONS = CAMPAIGNS.flatMap((c) => c.actions.map((a) => a.replace(/\.$/, '')));
+	const marquee = [...ACTIONS, ...ACTIONS];
+
+	function stickerMeta(p: CampaignProgress): string {
+		const n = p.total + p.articles;
+		if (!n) return 'Be the first to join';
+		return plural(n, 'contribution') + (p.resolved ? ` · ${p.resolved} resolved` : '');
+	}
 </script>
 
 <svelte:head>
-	<title>Campusphere: the campus community sphere</title>
+	<title>Campusphere: ethics in action at Mabini Campus</title>
 	<meta
 		name="description"
-		content="The anonymous board for Batangas State University – Mabini Campus. Post a concern, back a solution, and watch it get resolved."
+		content="Ethics in action for Batangas State University – Mabini Campus. Learn the values, join a campus campaign, report a concern or share an idea, and see what changes. No account, no names."
 	/>
 </svelte:head>
 
 <a class="skip" href="#main">Skip to content</a>
 
-<header class="hero on-dark" use:spotlight>
+<header class="hero on-dark" data-landing use:spotlight>
 	<nav aria-label="Main">
 		<a class="brand disp" href="/"
 			><span class="logo"><Icon name="chat" size={21} /></span>Campusphere</a
@@ -166,114 +147,91 @@
 				</li>
 			{/each}
 		</ul>
-		<Magnetic><a class="hbtn w sm" href="/concerns/new">Post a concern</a></Magnetic>
+		<Magnetic><a class="hbtn w sm" href="/concerns/new">Report a concern</a></Magnetic>
 	</nav>
 
 	<div class="hcopy" id="main">
+		<p class="badge"><Icon name="target" size={16} />Ethics in Action Campaign</p>
 		<AnimatedHeading
 			class="disp h1"
-			lines={['Say it.', 'Fix it.', 'Together.']}
-			indents={['0', '7vw', '1.5vw']}
+			lines={['A better', 'campus starts', 'with you.']}
+			indents={['0', '2.5vw', '0.6vw']}
 		/>
+		<p class="tagline disp">
+			Connect. Share. Collaborate. <span class="u">Improve.</span>
+		</p>
 		<p class="sub">
-			The anonymous board for Batangas State University – Mabini Campus. Post a concern, back a
-			solution, and watch it get resolved.
+			A platform for every Red Spartan to voice concerns, suggest solutions, and help build a
+			better, more responsible campus community. No account, no names.
 		</p>
 		<div class="cta-row">
-			<Magnetic><a class="hbtn w" href="/concerns/new">Post a concern</a></Magnetic>
-			<Magnetic><a class="hbtn l" href="/concerns">Browse the board</a></Magnetic>
+			<Magnetic
+				><a class="hbtn w" href="/campaigns">Take action<Icon name="arrow" size={18} /></a
+				></Magnetic
+			>
+			<Magnetic
+				><a class="hbtn l" href="#discover">Learn more<Icon name="down" size={18} /></a></Magnetic
+			>
 		</div>
+		<nav class="ribbon" aria-label="How Campusphere works">
+			<ol>
+				{#each FLOW as f, i (f.id)}
+					<li>
+						<a href="#{f.id}"
+							><span class="rn disp" aria-hidden="true">0{i + 1}</span><span class="rt"
+								><b>{f.label}</b><small>{f.step}</small></span
+							></a
+						>
+					</li>
+				{/each}
+			</ol>
+		</nav>
 	</div>
 
 	<div class="notes" aria-hidden="true">
-		{#if data.notes.open}
+		{#each data.campaigns as c, i (c.slug)}
+			{@const pos = STICKERS[i % STICKERS.length]}
 			<div
 				class="sticker"
-				style="--x:calc(100% - 360px);--y:150px;--r:3deg;--d:0s;--s:1.3s"
+				style="--x:{pos.x};--y:{pos.y};--r:{pos.r};--d:{pos.d};--s:{pos.s};--sw:250px"
 				use:draggable
 			>
 				<div class="in">
 					<i class="pin"></i>
-					<span class="st" data-s={data.notes.open.status}
-						>{STATUS_LABEL[data.notes.open.status]}</span
-					>
-					<h4 class="disp">{data.notes.open.title}</h4>
-					<p>{data.notes.open.description}</p>
+					<div class="shead">
+						<span class="sic"><Icon name={c.icon} size={20} /></span>
+						{#if c.chip}<span class="sval" class:focus={c.chip.focus}>{c.chip.name}</span>{/if}
+					</div>
+					<h4 class="disp">{c.title}</h4>
+					<p>{c.actions[0]}</p>
 					<div class="meta">
-						<span>{plural(data.notes.open.commentCount, 'comment')}</span><span
-							>{plural(data.notes.open.supportCount, 'support')}</span
-						>
+						<span>{stickerMeta(c.progress)}</span>
 					</div>
 				</div>
 			</div>
-		{/if}
-		{#if data.notes.resolved}
-			<div
-				class="sticker"
-				style="--x:calc(100% - 520px);--y:410px;--r:-4deg;--d:1.2s;--s:1.5s;--sw:250px"
-				use:draggable
-			>
-				<div class="in">
-					<i class="pin"></i>
-					<span class="st" data-s="resolved">Resolved</span>
-					<h4 class="disp">{data.notes.resolved.title}</h4>
-					<div class="meta">
-						<span>{plural(data.notes.resolved.commentCount, 'comment')}</span><span
-							>{plural(data.notes.resolved.supportCount, 'support')}</span
-						>
-					</div>
-				</div>
-			</div>
-		{/if}
-		<div
-			class="sticker compose"
-			style="--x:calc(100% - 300px);--y:430px;--r:2.5deg;--d:.6s;--s:1.7s;--sw:260px"
-			use:draggable
-		>
-			<div class="in">
-				<i class="pin"></i>
-				<h4 class="disp mt-1">What should be better?</h4>
-				<div class="ta">{typed}<span class="caret"></span></div>
-				<span class="go">Post anonymously</span>
-			</div>
-		</div>
-		{#if data.notes.review}
-			<div
-				class="sticker"
-				style="--x:calc(100% - 640px);--y:170px;--r:-3deg;--d:2s;--s:1.9s;--sw:240px"
-				use:draggable
-			>
-				<div class="in">
-					<i class="pin"></i>
-					<span class="st" data-s={data.notes.review.status}
-						>{STATUS_LABEL[data.notes.review.status]}</span
-					>
-					<h4 class="disp">{data.notes.review.title}</h4>
-				</div>
-			</div>
-		{/if}
-		<div class="hint">Drag the notes around</div>
+		{/each}
+		<div class="hint">Drag the campaigns around</div>
 	</div>
 
-	{#if marquee.length}
-		<div class="marq" aria-hidden="true">
-			<div class="track">
-				{#each marquee as m, i (i)}
-					<span
-						>{m}<svg viewBox="0 0 24 24"
-							><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" /></svg
-						></span
-					>
-				{/each}
-			</div>
+	<div class="marq" aria-hidden="true">
+		<div class="track">
+			{#each marquee as m, i (i)}
+				<span
+					>{m}<svg viewBox="0 0 24 24"
+						><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" /></svg
+					></span
+				>
+			{/each}
 		</div>
-	{/if}
+	</div>
 </header>
 
 <main>
-	{#if data.statement?.vision || data.statement?.mission}
-		<section class="vm" aria-labelledby="vm-h">
-			<h2 id="vm-h" class="sr-only">Vision and mission</h2>
+	<!-- ===== 01 Discover · Awareness ===== -->
+	<section class="vm" id="discover" aria-labelledby="vm-h">
+		<Eyebrow n="01" label="Discover" step="Awareness" />
+		<h2 id="vm-h" class="sr-only">Vision and mission</h2>
+		{#if data.statement?.vision || data.statement?.mission}
 			{#if data.statement.vision}
 				<div class="row">
 					<div class="tag disp">Vision</div>
@@ -293,32 +251,56 @@
 					<ScrollWords class="mis serif" text={data.statement.mission} />
 				</div>
 			{/if}
-		</section>
-	{/if}
+		{:else}
+			<div class="panel fb">
+				<p>The university's vision and mission will appear here once they are published.</p>
+				<a class="btn btn-o" href="/about">How Campusphere works</a>
+			</div>
+		{/if}
+	</section>
 
-	{#if data.statement?.values.length}
-		<section class="vals on-dark" aria-label="Core values">
-			<CoreValuesCube values={data.statement.values} />
-		</section>
-	{/if}
+	<section class="vals on-dark" aria-labelledby="vals-h">
+		{#if data.statement?.values.length}
+			<CoreValuesCube
+				values={data.statement.values}
+				title="Red Spartan Core Values"
+				headingId="vals-h"
+			/>
+		{:else}
+			<h2 class="disp" id="vals-h">Red Spartan Core Values</h2>
+			<div class="panel fb">
+				<p>The core values will appear here once they are published.</p>
+				<a class="btn btn-o" href="/about">How Campusphere works</a>
+			</div>
+		{/if}
+	</section>
+
+	<section class="camps" id="campaigns" aria-labelledby="camps-h">
+		<h2 class="disp" id="camps-h">Values are what we say. Campaigns are what we do.</h2>
+		<p class="lead">
+			Four Action Campaigns turn the core values into everyday habits. Try the suggested actions,
+			then report or recommend under a campaign so its progress shows.
+		</p>
+		<div class="cgrid">
+			{#each data.campaigns as c (c.slug)}
+				<CampaignCard campaign={c} />
+			{/each}
+		</div>
+		<p class="more"><a class="btn btn-o" href="/campaigns">See all campaigns</a></p>
+	</section>
+
+	<Objectives />
+
+	<LatestFeed posts={data.latest.posts} concerns={data.latest.concerns} />
+
+	<!-- ===== 02 Participate · Participation ===== -->
+	<ParticipatePaths campaigns={data.campaigns} />
 
 	<section class="steps" aria-labelledby="steps-h">
 		<h2 class="disp" id="steps-h">From a complaint to a fix, in the open.</h2>
-		<p class="lead">Every concern follows the same path, and everyone can see where it stands.</p>
-		<dl class="stats">
-			<div>
-				<dt>Concerns reported</dt>
-				<dd><CountUp to={data.stats.reported} class="disp" /></dd>
-			</div>
-			<div>
-				<dt>Resolved</dt>
-				<dd><CountUp to={data.stats.resolved} class="disp" /></dd>
-			</div>
-			<div>
-				<dt>Solutions proposed</dt>
-				<dd><CountUp to={data.stats.proposals} class="disp" /></dd>
-			</div>
-		</dl>
+		<p class="lead">
+			Every concern and recommendation follows the same path, and everyone can see where it stands.
+		</p>
 		<ol class="srow" bind:this={srow} style="--p:{progress}">
 			{#each CYCLE as s, i (s.title)}
 				<li class="step" class:on={progress >= i / (CYCLE.length - 1) - 0.02}>
@@ -330,14 +312,22 @@
 		<p class="more"><a class="lk" href="/about">Read how Campusphere works</a></p>
 	</section>
 
+	<!-- ===== 03 Engage · Positive change ===== -->
+	<Engage campaigns={data.campaigns} stats={data.stats} featured={data.featured} />
+
 	<section class="end on-dark" use:spotlight aria-labelledby="end-h">
 		<h2 class="disp" id="end-h">Your campus is listening.</h2>
 		<div class="row">
 			<p>No account. No names. Say what needs to change and let the community help fix it.</p>
-			<Magnetic><a class="hbtn w big" href="/concerns/new">Post a concern</a></Magnetic>
+			<div class="btns">
+				<Magnetic><a class="hbtn w big" href="/concerns/new">Report a concern</a></Magnetic>
+				<Magnetic><a class="hbtn l big" href="/recommendations">Share a recommendation</a></Magnetic
+				>
+			</div>
 		</div>
 		<footer>
 			<nav aria-label="Footer" class="fnav">
+				<a href="/campaigns">Action Campaigns</a>
 				<a href="/recommendations">Recommendations</a>
 				<a href="/blog">Blog</a>
 				<a href="/concerns">Concerns</a>
@@ -360,6 +350,16 @@
 <style>
 	:global(body) {
 		overflow-x: hidden;
+	}
+	/* Smooth anchor scrolling on this page only, and only when motion is welcome. */
+	@media (prefers-reduced-motion: no-preference) {
+		:global(html:has([data-landing])) {
+			scroll-behavior: smooth;
+		}
+	}
+	#discover,
+	#campaigns {
+		scroll-margin-top: 16px;
 	}
 	.skip {
 		position: absolute;
@@ -476,6 +476,7 @@
 		border-radius: 999px;
 		font-weight: 700;
 		font-size: 17px;
+		white-space: nowrap;
 		transition:
 			background 0.3s,
 			color 0.3s;
@@ -505,17 +506,103 @@
 	.hcopy {
 		position: relative;
 		z-index: 3;
-		padding: 150px 64px 140px;
+		padding: 136px 64px 130px;
 		max-width: 980px;
 	}
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 26px;
+		padding: 8px 16px 8px 12px;
+		border-radius: 999px;
+		background: rgba(52, 8, 12, 0.24);
+		border: 1px solid rgba(255, 246, 243, 0.35);
+		font-size: 14.5px;
+		font-weight: 700;
+		color: #fff6f3;
+		opacity: 0;
+		animation: fade 0.9s ease forwards 0.2s;
+	}
+	.tagline {
+		margin-top: 30px;
+		font-size: clamp(20px, 1.9vw, 28px);
+		letter-spacing: -0.02em;
+		color: #fff6f3;
+		opacity: 0;
+		animation: fade 0.9s ease forwards 1.3s;
+	}
+	.tagline .u {
+		background: linear-gradient(#fff6f3, #fff6f3) no-repeat 0 100% / 100% 3px;
+		padding-bottom: 2px;
+	}
+	.ribbon {
+		margin-top: 34px;
+		opacity: 0;
+		animation: fade 0.9s ease forwards 1.9s;
+	}
+	.ribbon ol {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		list-style: none;
+	}
+	.ribbon li {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.ribbon li + li::before {
+		content: '';
+		width: 22px;
+		height: 2px;
+		background: rgba(255, 246, 243, 0.55);
+	}
+	.ribbon a {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 52px;
+		padding: 6px 16px 6px 6px;
+		border-radius: 999px;
+		background: rgba(52, 8, 12, 0.22);
+		border: 1px solid rgba(255, 246, 243, 0.3);
+		color: #fff6f3;
+		transition: background 0.25s;
+	}
+	.ribbon a:hover {
+		background: rgba(52, 8, 12, 0.4);
+	}
+	.rn {
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		background: #fff6f3;
+		color: var(--red-d);
+		display: grid;
+		place-items: center;
+		font-size: 14px;
+	}
+	.rt {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.15;
+	}
+	.rt b {
+		font-size: 15.5px;
+	}
+	.rt small {
+		font-size: 13px;
+		color: #fff1ee;
+	}
 	.hcopy :global(.h1) {
-		font-size: clamp(64px, 11.6vw, 184px);
-		line-height: 0.88;
+		font-size: clamp(46px, 6.4vw, 112px);
+		line-height: 0.92;
 		color: #fff6f3;
 		letter-spacing: -0.045em;
 	}
 	.sub {
-		margin-top: 40px;
+		margin-top: 18px;
 		max-width: 520px;
 		font-size: 21px;
 		line-height: 1.55;
@@ -585,15 +672,39 @@
 		background: radial-gradient(circle at 35% 30%, #ff9a9a, #d01c23 45%, #7a0c12);
 		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
 	}
-	.sticker .st {
-		font-size: 12.5px;
-		padding: 4px 11px 4px 9px;
-	}
 	.sticker h4 {
 		font-size: 18px;
 		line-height: 1.25;
 		margin: 11px 0 4px;
 		letter-spacing: -0.02em;
+	}
+	.shead {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.sic {
+		width: 40px;
+		height: 40px;
+		border-radius: 12px;
+		background: var(--tint);
+		color: var(--red);
+		display: grid;
+		place-items: center;
+	}
+	.sval {
+		font-size: 12.5px;
+		font-weight: 700;
+		padding: 4px 11px;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		color: var(--red-d);
+	}
+	.sval.focus {
+		background: var(--red);
+		border-color: var(--red);
+		color: #fff;
 	}
 	.sticker p {
 		font-size: 14px;
@@ -606,39 +717,6 @@
 		gap: 14px;
 		font-size: 13px;
 		color: var(--muted);
-	}
-	.compose .ta {
-		margin-top: 10px;
-		min-height: 64px;
-		border: 1.5px solid var(--line);
-		border-radius: 10px;
-		padding: 10px 12px;
-		font-size: 14px;
-		line-height: 1.4;
-	}
-	.caret {
-		display: inline-block;
-		width: 2px;
-		height: 15px;
-		background: var(--red);
-		vertical-align: -3px;
-		margin-left: 1px;
-		animation: blink 1s steps(1) infinite;
-	}
-	@keyframes blink {
-		50% {
-			opacity: 0;
-		}
-	}
-	.compose .go {
-		margin-top: 10px;
-		display: inline-block;
-		background: var(--red);
-		color: #fff;
-		font-weight: 700;
-		font-size: 13.5px;
-		padding: 9px 15px;
-		border-radius: 9px;
 	}
 	.hint {
 		position: absolute;
@@ -695,7 +773,7 @@
 
 	/* ---------- VISION / MISSION ---------- */
 	.vm {
-		padding: 170px 64px 150px;
+		padding: 130px 64px 140px;
 		background: var(--rose);
 	}
 	.vm .row {
@@ -734,6 +812,19 @@
 		text-decoration: underline;
 	}
 
+	.fb {
+		max-width: 620px;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 16px;
+		color: var(--ink);
+		font-size: 17px;
+	}
+	.fb a:focus-visible {
+		outline-color: var(--red);
+	}
+
 	/* ---------- VALUES ---------- */
 	.vals {
 		background: var(--deep);
@@ -755,10 +846,45 @@
 		pointer-events: none;
 	}
 
+	.vals > h2 {
+		position: relative;
+		font-size: clamp(40px, 4.6vw, 72px);
+		line-height: 1;
+		margin-bottom: 28px;
+	}
+	.vals > .fb {
+		position: relative;
+	}
+
+	/* ---------- CAMPAIGNS ---------- */
+	.camps {
+		padding: 120px 64px;
+		background: #fff;
+	}
+	.camps h2 {
+		font-size: clamp(36px, 4.6vw, 72px);
+		line-height: 1;
+		max-width: 980px;
+	}
+	.camps .lead {
+		margin-top: 16px;
+		font-size: 19px;
+		color: var(--muted);
+		max-width: 640px;
+		line-height: 1.55;
+	}
+	.cgrid {
+		margin-top: 48px;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 20px;
+	}
+
 	/* ---------- STEPS ---------- */
 	.steps {
-		padding: 150px 64px 140px;
+		padding: 120px 64px;
 		background: #fff;
+		border-top: 1px solid var(--line2);
 	}
 	.steps h2 {
 		font-size: clamp(40px, 4.6vw, 72px);
@@ -772,28 +898,9 @@
 		max-width: 520px;
 		line-height: 1.55;
 	}
-	.stats {
-		margin-top: 48px;
-		display: flex;
-		gap: 16px 48px;
-		flex-wrap: wrap;
-	}
-	.stats div {
-		display: flex;
-		flex-direction: column-reverse;
-	}
-	.stats dt {
-		color: var(--muted);
-		font-size: 15px;
-	}
-	.stats dd :global(span) {
-		font-size: 56px;
-		line-height: 1;
-		color: var(--red);
-	}
 	.srow {
 		position: relative;
-		margin-top: 90px;
+		margin-top: 70px;
 		display: grid;
 		grid-template-columns: repeat(5, 1fr);
 		gap: 28px;
@@ -904,6 +1011,11 @@
 		align-items: center;
 		gap: 30px;
 	}
+	.end .btns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 14px;
+	}
 	.end p {
 		font-size: 21px;
 		color: #fff1ee;
@@ -967,10 +1079,23 @@
 		}
 		.vm,
 		.vals,
+		.camps,
 		.steps,
 		.end {
 			padding-left: 16px;
 			padding-right: 16px;
+		}
+		.camps {
+			padding-top: 80px;
+			padding-bottom: 80px;
+		}
+		.cgrid {
+			grid-template-columns: 1fr;
+			margin-top: 32px;
+		}
+		.hbtn.big {
+			font-size: 17px;
+			padding: 18px 28px;
 		}
 		.vm {
 			padding-top: 100px;
@@ -985,8 +1110,8 @@
 		}
 		.vals,
 		.steps {
-			padding-top: 90px;
-			padding-bottom: 90px;
+			padding-top: 80px;
+			padding-bottom: 80px;
 		}
 		.srow {
 			grid-template-columns: 1fr;
@@ -1014,17 +1139,34 @@
 			font-size: 16px;
 		}
 	}
+	@media (max-width: 640px) {
+		.ribbon ol {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+		.ribbon li + li::before {
+			display: none;
+		}
+	}
+	@media (max-width: 480px) {
+		/* The hero CTA sits right below; keep the bar to the brand only. */
+		nav[aria-label='Main'] .hbtn.sm {
+			display: none;
+		}
+	}
 	@media (prefers-reduced-motion: reduce) {
+		.badge,
+		.tagline,
 		.sub,
 		.cta-row,
+		.ribbon,
 		.sticker,
 		.hint {
 			animation: none;
 			opacity: 1;
 		}
 		.sticker .in,
-		.track,
-		.caret {
+		.track {
 			animation: none;
 		}
 		.track {

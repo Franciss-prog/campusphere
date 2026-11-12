@@ -5,6 +5,8 @@ import { expect, test } from '@playwright/test';
 // checks are still needed; axe finds roughly a third of real issues.)
 const PAGES = [
 	'/',
+	'/campaigns',
+	'/campaigns/keep-our-campus-clean',
 	'/recommendations',
 	'/concerns',
 	'/concerns/new',

@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { asc, inArray } from 'drizzle-orm';
 import { db, t } from '#lib/server/db/index.ts';
+import { findCampaign } from '#lib/campaigns.ts';
 import { checkbox, optionalText, parseForm, text } from '#lib/server/forms.ts';
 import { guardSubmission } from '#lib/server/safety.ts';
 import { cleanText } from '#lib/server/sanitize.ts';
@@ -15,12 +16,23 @@ import {
 } from '#lib/server/services/concerns.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
 	const [categories, tags] = await Promise.all([
 		concernCategories(),
-		db().select({ id: t.tag.id, name: t.tag.name }).from(t.tag).orderBy(asc(t.tag.name))
+		db()
+			.select({ id: t.tag.id, name: t.tag.name, slug: t.tag.slug })
+			.from(t.tag)
+			.orderBy(asc(t.tag.name))
 	]);
-	return { categories, tags };
+	// `?campaign=<slug>` pre-checks that campaign's tag. Unknown slugs, or a campaign whose tag
+	// does not exist yet, are ignored.
+	const c = findCampaign(url.searchParams.get('campaign'));
+	const tag = c ? tags.find((tg) => tg.slug === c.slug) : undefined;
+	return {
+		categories,
+		tags,
+		campaign: c && tag ? { slug: c.slug, title: c.title, tagId: tag.id } : null
+	};
 };
 
 const schema = z.object({

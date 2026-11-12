@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db, t } from '#lib/server/db/index.ts';
+import { findCampaign } from '#lib/campaigns.ts';
 import { guardSubmission } from '#lib/server/safety.ts';
 import { fileFrom, processImage } from '#lib/server/images.ts';
 import { hit } from '#lib/server/ratelimit.ts';
@@ -10,12 +11,23 @@ import { parsePostForm } from '#lib/server/post-form.ts';
 import { blogCategories, createPost } from '#lib/server/services/posts.ts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const [categories, tags] = await Promise.all([
 		blogCategories(),
-		db().select({ id: t.tag.id, name: t.tag.name }).from(t.tag).orderBy(asc(t.tag.name))
+		db()
+			.select({ id: t.tag.id, name: t.tag.name, slug: t.tag.slug })
+			.from(t.tag)
+			.orderBy(asc(t.tag.name))
 	]);
-	return { categories, tags, isStaff: !!locals.staff };
+	// `?campaign=<slug>` pre-checks that campaign's tag when it exists.
+	const c = findCampaign(url.searchParams.get('campaign'));
+	const tag = c ? tags.find((tg) => tg.slug === c.slug) : undefined;
+	return {
+		categories,
+		tags,
+		isStaff: !!locals.staff,
+		campaign: c && tag ? { slug: c.slug, title: c.title, tagId: tag.id } : null
+	};
 };
 
 export const actions: Actions = {

@@ -20,7 +20,17 @@
 		menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
 		close: '<path d="M6 6l12 12M18 6L6 18"/>',
 		key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/>',
-		list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'
+		list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+		target:
+			'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+		check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+		arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+		down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+		trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+		book: '<path d="M4 19V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0-2 2 2 2 0 0 0 2 2h14"/>',
+		building:
+			'<path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01M10 21v-3h4v3"/>',
+		pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'
 	} as const;
 	export type IconName = keyof typeof ICONS;
 </script>

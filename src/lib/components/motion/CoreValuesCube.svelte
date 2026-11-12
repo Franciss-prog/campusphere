@@ -5,7 +5,16 @@
 	// 3D cube with one value per face. The list on the left (real buttons) is the accessible
 	// control: hover or focus turns the cube. The cube itself is decorative (aria-hidden).
 	// It idles with a slow turn only while on screen, and stays still under reduced motion.
-	let { values }: { values: CoreValue[] } = $props();
+	let {
+		values,
+		title,
+		headingId
+	}: {
+		values: CoreValue[];
+		/** Replaces the default heading; the default line then opens the lead paragraph. */
+		title?: string;
+		headingId?: string;
+	} = $props();
 
 	// Focus value on the front face, the rest around it (prototype order).
 	const ordered = $derived.by(() => {
@@ -83,7 +92,17 @@
 
 <div class="vgrid">
 	<div>
-		<h2 class="disp">Six values. {ordered[0]?.name ?? 'Service'} sits at the heart.</h2>
+		{#if title}
+			<h2 class="disp" id={headingId}>{title}</h2>
+			<p class="kicker disp">
+				{values.length === 6 ? 'Six values.' : ''}
+				{ordered[0]?.name ?? 'Service'} sits at the heart.
+			</p>
+		{:else}
+			<h2 class="disp" id={headingId}>
+				Six values. {ordered[0]?.name ?? 'Service'} sits at the heart.
+			</h2>
+		{/if}
 		<p class="lead">
 			Campusphere goes beyond pointing out problems. It asks everyone to help solve them. Hover or
 			focus a value to turn the cube.
@@ -137,6 +156,12 @@
 		font-size: clamp(40px, 4.6vw, 72px);
 		line-height: 1;
 		max-width: 620px;
+	}
+	.kicker {
+		margin-top: 14px;
+		font-size: clamp(22px, 2vw, 28px);
+		line-height: 1.2;
+		color: #fff6f3;
 	}
 	.lead {
 		margin-top: 18px;

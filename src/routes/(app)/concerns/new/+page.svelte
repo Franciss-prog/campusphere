@@ -67,6 +67,13 @@
 	>
 		<FormGuard {resetKey} />
 		{#if f?.message}<p class="flash bad mb-6" role="alert">{f.message}</p>{/if}
+		{#if data.campaign}
+			<p class="flash ok mb-6">
+				Part of the <a class="underline" href="/campaigns/{data.campaign.slug}"
+					>{data.campaign.title}</a
+				> campaign. You can change this under "Add more details".
+			</p>
+		{/if}
 
 		<div class="f">
 			<label for="ct">Title</label>
@@ -132,7 +139,7 @@
 			{#if err('category')}<span class="err" id="cc-err">{err('category')}</span>{/if}
 		</div>
 
-		<details class="more" open={!!(val(f, 'location') || err('photo'))}>
+		<details class="more" open={!!(val(f, 'location') || err('photo') || data.campaign)}>
 			<summary>Add more details (optional)</summary>
 			<div class="mt-5">
 				<div class="f">
@@ -173,7 +180,13 @@
 						<div class="flex flex-wrap gap-2">
 							{#each data.tags as tg (tg.id)}
 								<label class="tg"
-									><input type="checkbox" name="tags" value={tg.id} /> {tg.name}</label
+									><input
+										type="checkbox"
+										name="tags"
+										value={tg.id}
+										checked={tg.id === data.campaign?.tagId}
+									/>
+									{tg.name}</label
 								>
 							{/each}
 						</div>

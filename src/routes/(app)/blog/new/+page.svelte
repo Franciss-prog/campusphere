@@ -13,6 +13,13 @@
 <div class="fhead">
 	<h1 class="disp">Write a post</h1>
 	<p>Share a story, a guide, or something the campus should know. Your name is never shown.</p>
+	{#if data.campaign}
+		<div class="flash ok mt-4">
+			Part of the <a class="underline" href="/campaigns/{data.campaign.slug}"
+				>{data.campaign.title}</a
+			> campaign. The tag is already checked under the optional details.
+		</div>
+	{/if}
 </div>
 
 <div class="wrap">
@@ -20,6 +27,7 @@
 		f={formState(form)}
 		categories={data.categories}
 		tags={data.tags}
+		checkedTags={data.campaign ? [data.campaign.tagId] : []}
 		isStaff={data.isStaff}
 	/>
 	<aside class="side" aria-label="Before you post">

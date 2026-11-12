@@ -17,6 +17,7 @@
 	} = $props();
 
 	const PUBLIC_NAV: NavItem[] = [
+		{ href: '/campaigns', label: 'Action Campaigns', icon: 'target' },
 		{ href: '/recommendations', label: 'Recommendations', icon: 'bulb' },
 		{ href: '/blog', label: 'Blog', icon: 'doc' },
 		{ href: '/concerns', label: 'Campus Concerns', icon: 'flag' },

@@ -79,6 +79,19 @@
 	{#if err?.errors?.idea}<p class="err" role="alert">{err.errors.idea}</p>{/if}
 	{#if err?.errors?.photo}<p class="err" role="alert">{err.errors.photo}</p>{/if}
 	{#if err?.message}<p class="flash bad mt-3" role="alert">{err.message}</p>{/if}
+	{#if data.campaigns.length}
+		{@const chosen = err ? val(err, 'campaign') : (data.campaign ?? '')}
+		<div class="camp">
+			<label for="campaign">Part of a campaign? <span>(optional)</span></label>
+			<select id="campaign" name="campaign" class="input">
+				<option value="" selected={!chosen}>Not part of a campaign</option>
+				{#each data.campaigns as c (c.slug)}
+					<option value={c.slug} selected={chosen === c.slug}>{c.title}</option>
+				{/each}
+			</select>
+			<a class="lk" href="/campaigns">What are campaigns?</a>
+		</div>
+	{/if}
 	<div class="row">
 		<label class="btn btn-o btn-sm photo">
 			<Icon name="img" size={18} />{photoName ? 'Change photo' : 'Add a photo'}
@@ -102,7 +115,7 @@
 
 <div class="listhead">
 	<div>
-		<h2 class="disp">Recent recommendations</h2>
+		<h2 class="disp" id="recent">Recent recommendations</h2>
 		<p>{SORT_TEXT[data.sort]}</p>
 	</div>
 	<SortSelect
@@ -157,6 +170,30 @@
 	}
 	.compose textarea:focus {
 		background: #fff;
+	}
+	.camp {
+		margin-top: 14px;
+		display: flex;
+		align-items: center;
+		gap: 10px 14px;
+		flex-wrap: wrap;
+	}
+	.camp label {
+		font-weight: 600;
+		font-size: 15px;
+	}
+	.camp label span {
+		font-weight: 500;
+		color: var(--muted);
+	}
+	.camp select {
+		width: auto;
+		min-width: 240px;
+		max-width: 100%;
+		min-height: 44px;
+	}
+	#recent {
+		scroll-margin-top: 16px;
 	}
 	.row {
 		margin-top: 14px;

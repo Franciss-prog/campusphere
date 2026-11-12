@@ -13,6 +13,13 @@ bun run db:seed --base --allow-production      # categories, tags, settings, off
 SEED_ADMIN_EMAIL=… SEED_ADMIN_PASSWORD=… bun run db:seed-admin
 ```
 
+The base seed also creates the four Action Campaign tags (one per `CAMPAIGNS` entry in
+`src/lib/content/site.ts`, tag slug = campaign slug). If production was seeded before campaigns
+existed, rerun the base seed or create them in **Admin → Categories and tags** (`/admin/taxonomy`)
+with exactly these slugs: `keep-our-campus-clean`, `practice-academic-integrity`,
+`respect-campus-facilities`, `promote-responsible-behavior`. Without them, campaign pages still
+render, but counts stay at zero and campaign tagging is hidden.
+
 Never run the full seed (sample content) or `test:db` / `test:e2e` against production.
 
 Maintenance, safe on production (for example from a daily cron):
@@ -59,6 +66,7 @@ Set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in production; without them 
 - [ ] `BODY_SIZE_LIMIT=6M`.
 - [ ] The first administrator signed in and changed the temporary password (Account page).
 - [ ] Office placeholders in `src/lib/content/site.ts` are filled in.
+- [ ] The four Action Campaign tags exist, and the campaign copy was confirmed by the campaign team.
 - [ ] Moderation settings reviewed (Moderation → Moderation settings).
 
 ## Notes
